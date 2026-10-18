@@ -1,0 +1,178 @@
+export type UserRole = "client" | "worker" | "admin";
+
+export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected";
+
+/**
+ * Account lifecycle. A client or worker is invisible to the rest of the
+ * platform until an administrator approves the account. Admin accounts are
+ * created pre-approved by the bootstrap process.
+ */
+export type AccountStatus = "pending" | "approved" | "suspended" | "rejected";
+
+export type BookingStatus =
+  | "pending_payment"
+  | "confirmed_exclusive"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+export type EscrowStatus = "holding" | "released" | "refunded";
+
+/** A provider-confirmed payment is required before a booking becomes exclusive. */
+export type PaymentStatus = "pending" | "paid" | "failed" | "cancelled" | "expired";
+
+export interface MpesaPayment {
+  id: string;
+  bookingId: string;
+  clientId: string;
+  amountKes: number;
+  phoneNumber: string;
+  status: PaymentStatus;
+  merchantRequestId?: string;
+  /** Paybill number the money was collected into (sandbox shortcode or 542542). */
+  paybillNumber?: string;
+  /** Account number / reference submitted with the payment. */
+  accountReference?: string;
+  checkoutRequestId?: string;
+  mpesaReceiptNumber?: string;
+  resultCode?: number;
+  resultDescription?: string;
+  rawCallback?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  paidAt?: string;
+}
+
+// Constant Platform Hiring Fee (Ksh 3,000 for all workers)
+export const CONSTANT_HIRING_FEE_KES = 3000;
+export const CONSTANT_HIRING_FEE_USD = 23.076923; // Exactly Ksh 3,000 at 1 USD = 130 KES
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar: string;
+  phone: string;
+  location: string;
+  householdSize?: string; // e.g. "2 Adults, 1 Toddler, 1 Cat"
+  householdNotes?: string;
+  idVerificationStatus: VerificationStatus;
+  idType?: "national_id" | "passport" | "drivers_license";
+  idNumber?: string;
+  idDocumentUrl?: string; // Front
+  idDocumentBackUrl?: string; // Back
+  selfieUrl?: string;
+  rejectionReason?: string;
+  verifiedAt?: string;
+  submittedAt?: string;
+  createdAt: string;
+  /** Account approval lifecycle. New client/worker accounts start as "pending". */
+  accountStatus?: AccountStatus;
+  approvedAt?: string;
+  approvedBy?: string;
+  /** Reason shown to the user when an account is rejected or suspended. */
+  accountStatusReason?: string;
+  lastLoginAt?: string;
+  /** Stored only server-side. Never return this field from an API response. */
+  password?: string;
+}
+
+export type EngagementType = "daily" | "monthly";
+
+export interface WorkerProfile {
+  id: string;
+  userId: string;
+  headline: string;
+  bio: string;
+  services: string[]; // e.g. ["Housekeeping", "Cooking", "Childcare", "Elderly Care", "Deep Cleaning", "Laundry"]
+  hireFee: number; // Platform booking fee / legacy fee
+  engagementTypes: EngagementType[]; // Which engagements the worker offers: daily (1–2 day jobs), monthly, or both
+  expectedDailySalary: number; // Stated daily pay for daily/short-term jobs at end of day (in USD base)
+  expectedMonthlySalary: number; // Stated monthly pay for monthly engagements (in USD base)
+  location: string;
+  serviceRadiusKm: number;
+  yearsExperience: number;
+  rating: number;
+  reviewCount: number;
+  languages: string[];
+  policeClearanceVerified: boolean;
+  backgroundCheckVerified: boolean;
+  referenceCount: number;
+  liveInAvailable: boolean;
+  availableDays: string[];
+  skills: string[];
+  featured?: boolean;
+}
+
+export interface Booking {
+  id: string;
+  bookingRef: string; // e.g. "HLK-2026-9042"
+  clientId: string;
+  workerId: string;
+  serviceName: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  totalDays: number;
+  platformBookingFee: number; // Fee paid directly to web owner
+  workerExpectedDailySalary: number; // Stated salary paid directly by client to worker at end of day
+  totalAmount: number; // Equals platformBookingFee (web only charges the booking fee)
+  hireFee?: number; // Optional legacy field
+  platformFee?: number; // Optional legacy field
+  status: BookingStatus;
+  escrowStatus: EscrowStatus;
+  clientAddress: string;
+  specialInstructions?: string;
+  paymentMethod?: string;
+  paymentTransactionRef?: string;
+  paymentStatus?: PaymentStatus;
+  paymentRequestId?: string;
+  paymentFailureReason?: string;
+  reservationExpiresAt?: string;
+  paidAt?: string;
+  createdAt: string;
+}
+
+export type EmergencyAlarmType =
+  | "theft"
+  | "security"
+  | "abuse"
+  | "neglect"
+  | "misconduct";
+
+export interface EmergencyAlarm {
+  id: string;
+  bookingId: string;
+  bookingRef: string;
+  raisedByUserId: string;
+  raisedByName: string;
+  raisedByUserRole: "client" | "worker";
+  alarmType: EmergencyAlarmType;
+  severity: "critical" | "urgent";
+  details: string;
+  location: string;
+  status: "active" | "responding" | "resolved";
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Review {
+  id: string;
+  bookingId: string;
+  clientId: string;
+  clientName: string;
+  clientAvatar: string;
+  workerId: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
+export interface IDVerificationSubmission {
+  idType: "national_id" | "passport" | "drivers_license";
+  idNumber: string;
+  idDocumentUrl: string;
+  idDocumentBackUrl?: string;
+  selfieUrl: string;
+}

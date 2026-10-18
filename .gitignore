@@ -1,0 +1,49 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+.turbo
+
+# Production build
+/build
+
+# Runtime data & local databases
+/data/*.local.json
+/data/*.bak
+*.log
+dev.log
+build_fresh.log
+
+# Environment variables — NEVER commit real credentials
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Uploaded user content (identity docs, photos) — keep out of git
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+ninja-check.png
+
+# Misc scratch output
+/scratch/*.tmp

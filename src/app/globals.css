@@ -1,0 +1,317 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 255, 255, 255;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgba(14, 165, 233, 0.25);
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background:
+    radial-gradient(1200px 500px at 80% -10%, rgba(14, 165, 233, 0.06), transparent 60%),
+    radial-gradient(900px 400px at 0% 10%, rgba(56, 189, 248, 0.05), transparent 55%),
+    #f0f9ff;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Motion utilities ---------- */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-14px) scale(1.03);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.delay-75 {
+  animation-delay: 75ms;
+}
+.delay-150 {
+  animation-delay: 150ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
+.animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-float-slow,
+  .animate-pulse-soft {
+    animation: none;
+  }
+}
+
+/* ---------- Card hover lift ---------- */
+.lift {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+.lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px -18px rgba(56, 189, 248, 0.35);
+}
+
+/* ---------- Selection & scrollbar polish ---------- */
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* ---------- Glass surfaces ---------- */
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60;
+  }
+  .glass-dark {
+    @apply bg-slate-900/60 backdrop-blur-xl border border-white/10;
+  }
+
+  /* Buttons — one canonical set for the whole platform */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-bold transition-all duration-200
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2
+      disabled:opacity-60 disabled:cursor-not-allowed select-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-glow-brand hover:bg-brand-500 hover:-translate-y-0.5
+      active:translate-y-0 active:scale-[0.98] px-5 py-3 text-sm;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-800 border border-slate-200 shadow-sm hover:border-brand-300
+      hover:text-brand-700 hover:-translate-y-0.5 active:translate-y-0 px-5 py-3 text-sm;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3.5 py-2 text-xs;
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white shadow-[0_18px_45px_-18px_rgba(225,29,72,0.6)]
+      hover:bg-rose-500 hover:-translate-y-0.5 active:translate-y-0 px-5 py-3 text-sm;
+  }
+  .btn-sm {
+    @apply px-3.5 py-2 text-xs;
+  }
+
+  /* Surfaces */
+  .card {
+    @apply bg-white rounded-3xl border border-slate-200/90 shadow-soft;
+  }
+  .card-hover {
+    @apply card transition-all duration-300 hover:shadow-card hover:-translate-y-1 hover:border-brand-200;
+  }
+  .card-dark {
+    @apply bg-ink-soft rounded-3xl border border-white/10 shadow-card;
+  }
+
+  /* Pills & badges */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold tracking-wide;
+  }
+  .pill-brand {
+    @apply pill bg-brand-50 text-brand-700 border border-brand-200/80;
+  }
+  .pill-dark {
+    @apply pill bg-white/10 text-white border border-white/20 backdrop-blur-sm;
+  }
+
+  /* Section rhythm */
+  .section {
+    @apply max-w-[88rem] mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .eyebrow {
+    @apply text-[11px] font-black uppercase tracking-[0.18em] text-brand-600;
+  }
+  .display-1 {
+    @apply font-display font-black tracking-[-0.02em] leading-[1.05];
+  }
+}
+
+/* ---------- Inputs ---------- */
+.field {
+  @apply w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-3 text-xs font-semibold
+    text-slate-900 placeholder:text-slate-400 transition-all
+    focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-300 focus:bg-white;
+}
+
+/* ---------- Gradient text ---------- */
+.text-gradient {
+  background-image: linear-gradient(100deg, #0284c7 0%, #38bdf8 45%, #0ea5e9 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s ease infinite;
+}
+
+/* ---------- Decorative grid & noise ---------- */
+.grid-lines {
+  background-image: linear-gradient(to right, rgba(2, 132, 199, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(2, 132, 199, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* ---------- Skeleton shimmer ---------- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #eef4fb 0%, #e2edf8 50%, #eef4fb 100%);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: shimmer 1.8s infinite;
+}
+
+/* ---------- Animated conic border (premium highlight) ---------- */
+.ring-conic {
+  position: relative;
+}
+.ring-conic::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from 180deg, #0ea5e9, #22d3ee, #6366f1, #0ea5e9);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.ring-conic:hover::before {
+  opacity: 1;
+}
+
+/* ---------- Focus ring consistency ---------- */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.65);
+  outline-offset: 2px;
+}
+
+/* ---------- Motion preferences ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Herlooku Task Ninja brand mark ---------- */
+.ninja-band-tail {
+  transform-origin: 7.5px 9.2px;
+  animation: ninja-tail 3.6s ease-in-out infinite;
+}
+
+@keyframes ninja-tail {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-7deg);
+  }
+}
+
+/* Ninja-red accent, used sparingly for "locked in" / exclusive states.
+   Deliberately distinct from the sky brand ramp so it never reads as an error. */
+.text-ninja-accent {
+  color: #b91c1c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-band-tail {
+    animation: none;
+  }
+}
+
+/* ---------- Decorative gradient orbs ---------- */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+/* ---------- Focus ring consistency ---------- */
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+  border-radius: 9999px;
+  border: 2px solid #f0f9ff;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+}
+

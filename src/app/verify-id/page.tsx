@@ -1,0 +1,399 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  Clock,
+  AlertCircle,
+  FileCheck,
+  Camera,
+  Upload,
+  CheckCircle2,
+  Sparkles,
+  ArrowRight,
+  UserCheck,
+  FileText,
+} from "lucide-react";
+import { User } from "@/types";
+import { VerificationBadge } from "@/components/VerificationBadge";
+import { useLanguage } from "@/i18n/LanguageContext";
+
+export default function VerifyIdPage() {
+  const { t } = useLanguage();
+  const tx = (copy: string) => t(`copy:${copy}`);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
+    null
+  );
+
+  // Form fields
+  const [idType, setIdType] = useState<"national_id" | "passport" | "drivers_license">(
+    "national_id"
+  );
+  const [idNumber, setIdNumber] = useState("");
+  const [idDocumentUrl, setIdDocumentUrl] = useState("");
+  const [idDocumentBackUrl, setIdDocumentBackUrl] = useState("");
+  const [selfieUrl, setSelfieUrl] = useState("");
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.activeUser);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+    const handleAuth = () => fetchUser();
+    window.addEventListener("auth-changed", handleAuth);
+    return () => window.removeEventListener("auth-changed", handleAuth);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+
+    if (!idNumber || !idDocumentUrl || !selfieUrl) {
+      setFeedback({
+        type: "error",
+        text: tx("Please fill in ID document number, provide document image, and provide a selfie photo."),
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idType,
+          idNumber,
+          idDocumentUrl,
+          idDocumentBackUrl,
+          selfieUrl,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setFeedback({
+          type: "success",
+          text: tx("Verification submitted successfully! Switch to the Admin persona in the header to approve your ID."),
+        });
+        setCurrentUser(data.user);
+        window.dispatchEvent(new Event("auth-changed"));
+      } else {
+        setFeedback({
+          type: "error",
+          text: t(`copy:${data.error || "Failed to submit verification."}`),
+        });
+      }
+    } catch (e: any) {
+      setFeedback({ type: "error", text: t(`copy:${e.message || "An unexpected error occurred."}`) });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-sm text-slate-500">{tx("Loading identity verification status...")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      {/* Header Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-ink via-ink-soft to-brand-950 rounded-[2rem] p-8 text-white shadow-card flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-up">
+        <div aria-hidden className="absolute -top-24 -right-20 w-72 h-72 rounded-full bg-brand-500/20 blur-3xl pointer-events-none" />
+        <div aria-hidden className="absolute inset-0 grid-lines opacity-30 pointer-events-none" />
+        <div className="relative space-y-2.5 max-w-xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-brand-200 text-xs font-bold border border-white/15 backdrop-blur-sm w-fit">
+            <ShieldCheck size={14} />
+            <span>{tx("Two-Sided Safety Trust Standard")}</span>
+          </div>
+          <h1 className="display-1 text-3xl">{tx("Identity Verification")}</h1>
+          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+            Herlooku Task Ninja strictly requires government identification from both clients and househelps
+            before allowing bookings or listings.
+          </p>
+        </div>
+
+        {currentUser && (
+          <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/12 shrink-0 text-center space-y-2 min-w-[12rem]">
+            <span className="text-[11px] text-slate-300 block">{tx("Your Current Status")}</span>
+            <VerificationBadge status={currentUser.idVerificationStatus} size="lg" />
+            <span className="text-[11px] text-slate-400 block capitalize">
+              {t("roles." + currentUser.role)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* STATUS OVERVIEWS */}
+
+      {/* Case 1: Already Verified */}
+      {currentUser?.idVerificationStatus === "verified" && (
+        <div className="card p-8 border-emerald-200 space-y-6 animate-fade-up">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <ShieldCheck size={32} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900">{tx("Your Identity is Verified ✓")}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Verified on {new Date(currentUser.verifiedAt || Date.now()).toLocaleDateString()} via{" "}
+                {currentUser.idType?.replace("_", " ").toUpperCase()} (ID: {currentUser.idNumber})
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/60 rounded-2xl p-4 border border-emerald-100 text-xs text-emerald-900 space-y-2">
+            <span className="font-bold block">{tx("Account Privileges Enabled:")}</span>
+            <ul className="space-y-1.5 list-disc list-inside text-emerald-800">
+              {currentUser.role === "client" ? (
+                <>
+                  <li>{tx("Full permission to book any househelp with exclusive reservation lock.")}</li>
+                  <li>{tx("Access to verified worker telephone and direct contact details upon checkout.")}</li>
+                  <li>{tx("Eligible for Herlooku Task Ninja Till Verification Guarantee.")}</li>
+                </>
+              ) : (
+                <>
+                  <li>{tx("Profile is active and visible in the public helper search directory.")}</li>
+                  <li>{tx("Eligible to receive verified exclusive bookings and direct daily compensation from clients.")}</li>
+                  <li>{tx("Verified badge displayed on your public profile card.")}</li>
+                </>
+              )}
+            </ul>
+          </div>
+
+          <div className="pt-2 flex gap-4">
+            <Link
+              href={currentUser.role === "worker" ? "/dashboard/worker" : "/workers"}
+              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+            >
+              {currentUser.role === "worker" ? tx("Go to Worker Dashboard") : tx("Browse & Book Helpers")}
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Case 2: Pending Review */}
+      {currentUser?.idVerificationStatus === "pending" && (
+        <div className="card p-8 border-amber-200 space-y-6 animate-fade-up">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <Clock size={32} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900">{tx("Verification Under Review")}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {tx("Submitted on")} {new Date(currentUser.submittedAt || Date.now()).toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200 text-xs text-amber-900 space-y-2">
+            <p className="leading-relaxed">
+              {t("copy:Our trust and compliance specialists are reviewing your submitted documents ({type} #{number}). Verification is usually completed within 30 minutes.", {
+                type: currentUser.idType?.replace("_", " ") || "",
+                number: currentUser.idNumber || "",
+              })}
+            </p>
+            <div className="pt-2">
+              <p className="font-bold text-amber-950">
+                💡 Evaluating the platform right now? Switch to the &quot;Platform Administrator&quot; persona
+                in the top right to approve this request immediately!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <Link
+              href="/admin/verifications"
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              {t("copy:View Admin Review Queue →")}
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Case 3: Rejected */}
+      {currentUser?.idVerificationStatus === "rejected" && (
+        <div className="bg-rose-50 rounded-3xl p-8 border border-rose-200 space-y-4">
+          <div className="flex items-center gap-3 text-rose-800 font-bold text-lg">
+            <AlertCircle size={24} className="text-rose-600" />
+            <span>{tx("Document Verification Rejected")}</span>
+          </div>
+          <p className="text-xs text-rose-700 leading-relaxed">
+            {tx("Reason:")} <strong>{currentUser.rejectionReason || tx("Blurry document or mismatch")}</strong>.
+            {tx("Please submit a clear, legible government ID document and photo below.")}
+          </p>
+        </div>
+      )}
+
+      {/* Submission Form (Shown if Unverified or Rejected) */}
+      {(currentUser?.idVerificationStatus === "unverified" ||
+        currentUser?.idVerificationStatus === "rejected") && (
+        <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-soft space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">
+                {tx("Submit Government Identity Documents")}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {tx("Accepted: National ID, Passport, or Driver’s License")}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800">{tx("Document Type")}</label>
+                <select
+                  value={idType}
+                  onChange={(e: any) => setIdType(e.target.value)}
+                  className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                >
+                  <option value="national_id">{tx("National ID Card")}</option>
+                  <option value="passport">{tx("Passport")}</option>
+                  <option value="drivers_license">{tx("Driver’s License")}</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800">
+                  {tx("Document Identification Number")}
+                </label>
+                <input
+                  type="text"
+                  placeholder={tx("e.g. NID-883921-X or P992810")}
+                  value={idNumber}
+                  onChange={(e) => setIdNumber(e.target.value)}
+                  className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Document Image Front */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                <span>{tx("Front Side of Document (Image URL or Scan)")}</span>
+                <span className="text-[11px] text-slate-400">{tx("Must be crisp & readable")}</span>
+              </label>
+              <input
+                type="text"
+                placeholder={tx("https://... image link of front ID")}
+                aria-label={tx("Front Side of Document (Image URL or Scan)")}
+                value={idDocumentUrl}
+                onChange={(e) => setIdDocumentUrl(e.target.value)}
+                className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+              {idDocumentUrl && (
+                <div className="mt-2">
+                  <span className="text-[11px] text-slate-500 block mb-1">{tx("Preview:")}</span>
+                  <img
+                    src={idDocumentUrl}
+                    alt={tx("ID Preview")}
+                    className="w-48 h-32 object-cover rounded-xl border border-slate-300 shadow-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Document Image Back (Optional for Passport) */}
+            {idType !== "passport" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                  <span>{tx("Back Side of Document (Optional)")}</span>
+                  <span className="text-[11px] text-slate-400">{tx("Barcode / Signature side")}</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder={tx("https://... image link of back ID")}
+                  aria-label={tx("Back Side of Document (Optional)")}
+                  value={idDocumentBackUrl}
+                  onChange={(e) => setIdDocumentBackUrl(e.target.value)}
+                  className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                />
+              </div>
+            )}
+
+            {/* Live Selfie URL */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                <span>{tx("Facial Verification Photo / Selfie")}</span>
+                <span className="text-[11px] text-slate-400">{tx("Matches ID photo")}</span>
+              </label>
+              <input
+                type="text"
+                placeholder={tx("https://... selfie photo URL")}
+                aria-label={tx("Facial Verification Photo / Selfie")}
+                value={selfieUrl}
+                onChange={(e) => setSelfieUrl(e.target.value)}
+                className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+              />
+              {selfieUrl && (
+                <div className="mt-2">
+                  <span className="text-[11px] text-slate-500 block mb-1">{tx("Selfie Preview:")}</span>
+                  <img
+                    src={selfieUrl}
+                    alt={tx("Selfie Preview:")}
+                    className="w-24 h-24 object-cover rounded-2xl border border-slate-300 shadow-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {feedback && (
+              <div
+                className={`p-4 rounded-xl text-xs font-medium ${
+                  feedback.type === "success"
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-rose-50 text-rose-800 border border-rose-200"
+                }`}
+              >
+                {feedback.text}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>{tx("Submitting for Verification...")}</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={16} />
+                  <span>{tx("Submit ID for Compliance Review")}</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}

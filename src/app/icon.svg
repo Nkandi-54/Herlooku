@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <!-- Background: deep obsidian-to-midnight gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <!-- Fabric wrap: dark navy with slight cool tint -->
+    <linearGradient id="fabric" x1="6" y1="4" x2="26" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1e3a5f"/>
+      <stop offset="0.5" stop-color="#0c2340"/>
+      <stop offset="1" stop-color="#071526"/>
+    </linearGradient>
+    <!-- Eye slit interior -->
+    <linearGradient id="eyebg" x1="8" y1="14" x2="24" y2="16" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0a1628"/>
+      <stop offset="1" stop-color="#071020"/>
+    </linearGradient>
+    <!-- Headband: vivid cyan-to-sky -->
+    <linearGradient id="band" x1="4" y1="10" x2="28" y2="12" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38bdf8"/>
+      <stop offset="0.5" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+    <!-- Left eye glow -->
+    <radialGradient id="eyeL" cx="12.5" cy="15" r="2.2" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset="0.5" stop-color="#38bdf8" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Right eye glow (shadow side) -->
+    <radialGradient id="eyeR" cx="21" cy="15" r="2" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#bae6fd"/>
+      <stop offset="0.6" stop-color="#38bdf8" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Subtle surface highlight -->
+    <linearGradient id="sheen" x1="8" y1="2" x2="20" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="eye-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── Base tile ──────────────────────────────── -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- ── Ghost shuriken in background ──────────── -->
+  <g opacity="0.08" transform="translate(16,16)">
+    <polygon points="0,-9 2,-2 9,0 2,2 0,9 -2,2 -9,0 -2,-2" fill="#38bdf8"/>
+    <polygon points="0,-9 2,-2 9,0 2,2 0,9 -2,2 -9,0 -2,-2" fill="#38bdf8" transform="rotate(45)"/>
+  </g>
+
+  <!-- ── Ambient sheen ──────────────────────────── -->
+  <rect width="32" height="32" rx="7" fill="url(#sheen)"/>
+
+  <!-- ── Ninja head / balaclava fabric ─────────── -->
+  <path
+    d="M16 3.5
+       c5.8 0 9.5 3.8 9.5 9.2
+       c0 2.8-.4 5.3-1.2 7.4
+       c-.5 1.3-1.1 2.4-1.8 3.1
+       c-.5.5-1 .8-1.5.8
+       h-2.2c-.4 0-.7-.3-.7-.7
+       v-.9c0-.4-.3-.7-.7-.7
+       h-2.8c-.4 0-.7.3-.7.7
+       v.9c0 .4-.3.7-.7.7
+       h-2.2c-.6 0-1-.3-1.5-.8
+       c-.7-.7-1.3-1.8-1.8-3.1
+       c-.8-2.1-1.2-4.6-1.2-7.4
+       C6.5 7.3 10.2 3.5 16 3.5Z"
+    fill="url(#fabric)"
+  />
+
+  <!-- Fabric fold line — nose-bridge crease -->
+  <path
+    d="M16 18.5 L16 21.5"
+    stroke="#1a3a5c"
+    stroke-width="0.7"
+    stroke-linecap="round"
+    opacity="0.6"
+  />
+
+  <!-- Lower face wrap folds (horizontal stitching) -->
+  <path d="M10.5 20.2 Q16 21.2 21.5 20.2" stroke="#1e3a5c" stroke-width="0.6" fill="none" stroke-linecap="round" opacity="0.55"/>
+  <path d="M11.5 22.0 Q16 22.8 20.5 22.0" stroke="#1e3a5c" stroke-width="0.5" fill="none" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- ── Headband ────────────────────────────────── -->
+  <rect x="5.5" y="9" width="21" height="2.6" rx="1.3" fill="url(#band)" opacity="0.95"/>
+  <rect x="5.5" y="10.6" width="21" height="0.6" rx="0.3" fill="#0c4a6e" opacity="0.35"/>
+  <circle cx="16" cy="10.3" r="1.6" fill="#0369a1"/>
+  <circle cx="16" cy="10.3" r="0.7" fill="#e0f2fe" opacity="0.9"/>
+  <circle cx="15.6" cy="9.9" r="0.22" fill="#ffffff" opacity="0.7"/>
+
+  <!-- ── Trailing ribbon (left side) ───────────── -->
+  <path
+    d="M6.5 10.3
+       L2.5 7.8
+       c-.7-.45-1.5.4-.9 1.1
+       l2.6 3.1
+       c.35.4.35 1.05-.05 1.45
+       L2.4 15.0
+       c-.6.6-.1 1.6.8 1.4
+       l4.5-.85"
+    fill="url(#band)"
+    opacity="0.82"
+  />
+  <path
+    d="M6.2 11.2
+       L3 14.2
+       c-.55.55-.05 1.5.7 1.35
+       l3.1-.6"
+    stroke="url(#band)"
+    stroke-width="1.1"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.55"
+  />
+
+  <!-- ── Eye slit ───────────────────────────────── -->
+  <rect x="7" y="13.0" width="18" height="4.2" rx="2.1" fill="url(#eyebg)"/>
+  <rect x="7" y="13.0" width="18" height="0.55" rx="0.27" fill="#1e3a5c" opacity="0.5"/>
+  <rect x="7" y="16.65" width="18" height="0.55" rx="0.27" fill="#071526" opacity="0.55"/>
+
+  <!-- Left eye — dominant, cyan glow -->
+  <circle cx="12.5" cy="15.1" r="1.55" fill="url(#eyeL)" filter="url(#eye-glow)"/>
+  <circle cx="12.5" cy="15.1" r="0.75" fill="#7dd3fc" opacity="0.95"/>
+  <circle cx="12.15" cy="14.75" r="0.28" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Right eye — secondary -->
+  <circle cx="20.8" cy="15.1" r="1.3" fill="url(#eyeR)" filter="url(#eye-glow)"/>
+  <circle cx="20.8" cy="15.1" r="0.6" fill="#bae6fd" opacity="0.88"/>
+  <circle cx="20.5" cy="14.82" r="0.22" fill="#ffffff" opacity="0.8"/>
+</svg>
