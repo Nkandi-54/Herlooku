@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { User } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
+import { PrivateDocumentUpload } from "@/components/PrivateDocumentUpload";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function VerifyIdPage() {
@@ -293,74 +294,31 @@ export default function VerifyIdPage() {
             </div>
 
             {/* Document Image Front */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                <span>{tx("Front Side of Document (Image URL or Scan)")}</span>
-                <span className="text-[11px] text-slate-400">{tx("Must be crisp & readable")}</span>
-              </label>
-              <input
-                type="text"
-                placeholder={tx("https://... image link of front ID")}
-                aria-label={tx("Front Side of Document (Image URL or Scan)")}
-                value={idDocumentUrl}
-                onChange={(e) => setIdDocumentUrl(e.target.value)}
-                className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-              {idDocumentUrl && (
-                <div className="mt-2">
-                  <span className="text-[11px] text-slate-500 block mb-1">{tx("Preview:")}</span>
-                  <img
-                    src={idDocumentUrl}
-                    alt={tx("ID Preview")}
-                    className="w-48 h-32 object-cover rounded-xl border border-slate-300 shadow-sm"
-                  />
-                </div>
-              )}
-            </div>
+            <PrivateDocumentUpload
+              label={tx("Front Side of Document")}
+              hint={tx("Must be crisp & readable")}
+              value={idDocumentUrl}
+              onChange={setIdDocumentUrl}
+            />
 
             {/* Document Image Back (Optional for Passport) */}
             {idType !== "passport" && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                  <span>{tx("Back Side of Document (Optional)")}</span>
-                  <span className="text-[11px] text-slate-400">{tx("Barcode / Signature side")}</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder={tx("https://... image link of back ID")}
-                  aria-label={tx("Back Side of Document (Optional)")}
-                  value={idDocumentBackUrl}
-                  onChange={(e) => setIdDocumentBackUrl(e.target.value)}
-                  className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                />
-              </div>
+              <PrivateDocumentUpload
+                label={tx("Back Side of Document (Optional)")}
+                hint={tx("Barcode / Signature side")}
+                value={idDocumentBackUrl}
+                onChange={setIdDocumentBackUrl}
+              />
             )}
 
-            {/* Live Selfie URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                <span>{tx("Facial Verification Photo / Selfie")}</span>
-                <span className="text-[11px] text-slate-400">{tx("Matches ID photo")}</span>
-              </label>
-              <input
-                type="text"
-                placeholder={tx("https://... selfie photo URL")}
-                aria-label={tx("Facial Verification Photo / Selfie")}
-                value={selfieUrl}
-                onChange={(e) => setSelfieUrl(e.target.value)}
-                className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-              {selfieUrl && (
-                <div className="mt-2">
-                  <span className="text-[11px] text-slate-500 block mb-1">{tx("Selfie Preview:")}</span>
-                  <img
-                    src={selfieUrl}
-                    alt={tx("Selfie Preview:")}
-                    className="w-24 h-24 object-cover rounded-2xl border border-slate-300 shadow-sm"
-                  />
-                </div>
-              )}
-            </div>
+            {/* Live Selfie */}
+            <PrivateDocumentUpload
+              label={tx("Facial Verification Photo / Selfie")}
+              hint={tx("Matches ID photo")}
+              value={selfieUrl}
+              onChange={setSelfieUrl}
+              aspect="portrait"
+            />
 
             {feedback && (
               <div

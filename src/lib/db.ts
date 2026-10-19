@@ -1,630 +1,712 @@
-import fs from "fs";
-import path from "path";
+import "server-only";
+
 import {
   User,
   WorkerProfile,
   Booking,
   Review,
+  AccountStatus,
   VerificationStatus,
   EmergencyAlarm,
   EmergencyAlarmType,
   MpesaPayment,
   CONSTANT_HIRING_FEE_USD,
 } from "@/types";
-
-interface DatabaseSchema {
-  users: User[];
-  workerProfiles: WorkerProfile[];
-  bookings: Booking[];
-  reviews: Review[];
-  payments: MpesaPayment[];
-  emergencies: EmergencyAlarm[];
-}
+import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { mapProfile } from "@/lib/auth";
 
 /**
- * The on-disk JSON store.
+ * Supabase-backed data access layer.
  *
- * IMPORTANT: this file is a single-process store intended for a small,
- * single-instance deployment. It is NOT a substitute for a managed
- * transactional database. All writes go through a synchronous read-modify-write
- * guarded by a cross-process file lock, so a Safaricom payment callback cannot
- * double-lock a worker, but you should still migrate to a real database
- * (Postgres/MySQL) before running at meaningful scale.
- *
- * The storage location is configurable so it can be pointed at a mounted
- * persistent volume in production:
- *   DATA_DIR=/var/data  (defaults to <project>/data)
+ * Every method here runs through the caller's session client, so Row Level
+ * Security is the real gatekeeper. Methods that must act outside RLS (the
+ * M-Pesa callback, admin approval) use the service-role client explicitly and
+ * are marked as such.
  */
-const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), "data");
-const DB_FILE_PATH = path.join(DATA_DIR, "db.json");
-const LOCK_FILE_PATH = path.join(DATA_DIR, "db.lock");
 
-const EMPTY_STATE: DatabaseSchema = {
-  users: [],
-  workerProfiles: [],
-  bookings: [],
-  reviews: [],
-  payments: [],
-  emergencies: [],
-};
+type ProfileRow = Parameters<typeof mapProfile>[0];
 
-/** Simple synchronous sleep without pulling in a dependency. */
-function sleep(ms: number) {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    // Busy-wait is acceptable: writes are tiny and infrequent.
-  }
+// ── Row mappers ─────────────────────────────────────────────────────────────
+
+function mapWorkerProfile(row: any): WorkerProfile {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    headline: row.headline,
+    bio: row.bio,
+    services: row.services ?? [],
+    hireFee: CONSTANT_HIRING_FEE_USD,
+    engagementTypes: row.engagement_types ?? [],
+    expectedDailySalary: Number(row.expected_daily_salary ?? 0),
+    expectedMonthlySalary: Number(row.expected_monthly_salary ?? 0),
+    location: row.location,
+    serviceRadiusKm: row.service_radius_km,
+    yearsExperience: row.years_experience,
+    rating: Number(row.rating ?? 0),
+    reviewCount: row.review_count,
+    languages: row.languages ?? [],
+    policeClearanceVerified: row.police_clearance_verified,
+    backgroundCheckVerified: row.background_check_verified,
+    referenceCount: row.reference_count,
+    liveInAvailable: row.live_in_available,
+    availableDays: row.available_days ?? [],
+    skills: row.skills ?? [],
+    featured: row.featured,
+  };
 }
 
+function mapBooking(row: any): Booking {
+  return {
+    id: row.id,
+    bookingRef: row.booking_ref,
+    clientId: row.client_id,
+    workerId: row.worker_id,
+    serviceName: row.service_name,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    totalDays: row.total_days,
+    platformBookingFee: Number(row.platform_booking_fee),
+    workerExpectedDailySalary: Number(row.worker_expected_daily_salary),
+    totalAmount: Number(row.total_amount),
+    status: row.status,
+    escrowStatus: row.escrow_status,
+    clientAddress: row.client_address,
+    specialInstructions: row.special_instructions ?? undefined,
+    paymentMethod: row.payment_method ?? undefined,
+    paymentTransactionRef: row.payment_transaction_ref ?? undefined,
+    paymentStatus: row.payment_status ?? undefined,
+    paymentRequestId: row.payment_request_id ?? undefined,
+    paymentFailureReason: row.payment_failure_reason ?? undefined,
+    reservationExpiresAt: row.reservation_expires_at ?? undefined,
+    paidAt: row.paid_at ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+function mapPayment(row: any): MpesaPayment {
+  return {
+    id: row.id,
+    bookingId: row.booking_id,
+    clientId: row.client_id,
+    amountKes: row.amount_kes,
+    phoneNumber: row.phone_number,
+    status: row.status,
+    merchantRequestId: row.merchant_request_id ?? undefined,
+    checkoutRequestId: row.checkout_request_id ?? undefined,
+    mpesaReceiptNumber: row.mpesa_receipt_number ?? undefined,
+    paybillNumber: row.paybill_number ?? undefined,
+    accountReference: row.account_reference ?? undefined,
+    resultCode: row.result_code ?? undefined,
+    resultDescription: row.result_description ?? undefined,
+    rawCallback: row.raw_callback ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    paidAt: row.paid_at ?? undefined,
+  };
+}
+
+function mapReview(row: any): Review {
+  return {
+    id: row.id,
+    bookingId: row.booking_id,
+    clientId: row.client_id,
+    clientName: row.client_name,
+    clientAvatar: row.client_avatar,
+    workerId: row.worker_id,
+    rating: row.rating,
+    comment: row.comment,
+    date: String(row.created_at).slice(0, 10),
+  };
+}
+
+function mapAlarm(row: any): EmergencyAlarm {
+  return {
+    id: row.id,
+    bookingId: row.booking_id ?? "general",
+    bookingRef: row.booking_ref,
+    raisedByUserId: row.raised_by_user_id,
+    raisedByName: row.raised_by_name,
+    raisedByUserRole: row.raised_by_user_role,
+    alarmType: row.alarm_type,
+    severity: row.severity,
+    details: row.details,
+    location: row.location,
+    status: row.status,
+    adminNotes: row.admin_notes ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? undefined,
+  };
+}
+
+// ── Repository ──────────────────────────────────────────────────────────────
+
 class Database {
-  private read(): DatabaseSchema {
-    try {
-      if (fs.existsSync(DB_FILE_PATH)) {
-        const parsed = JSON.parse(fs.readFileSync(DB_FILE_PATH, "utf-8"));
-        return {
-          users: Array.isArray(parsed.users) ? parsed.users : [],
-          workerProfiles: Array.isArray(parsed.workerProfiles)
-            ? parsed.workerProfiles
-            : [],
-          bookings: Array.isArray(parsed.bookings) ? parsed.bookings : [],
-          reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
-          payments: Array.isArray(parsed.payments) ? parsed.payments : [],
-          emergencies: Array.isArray(parsed.emergencies)
-            ? parsed.emergencies
-            : [],
-        };
-      }
-    } catch (error) {
-      console.error("Could not read the database file.", error);
+  private sb() {
+    return createServerSupabase();
+  }
+
+  // ── Users / profiles ─────────────────────────────────────────────────────
+
+  async getUsers(): Promise<User[]> {
+    const { data, error } = await this.sb().from("profiles").select("*");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => mapProfile(row as ProfileRow));
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const { data, error } = await this.sb()
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapProfile(data as ProfileRow);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const { data, error } = await this.sb()
+      .from("profiles")
+      .select("*")
+      .ilike("email", email.trim())
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapProfile(data as ProfileRow);
+  }
+
+  async countUsers(): Promise<number> {
+    const { count } = await this.sb()
+      .from("profiles")
+      .select("*", { count: "exact", head: true });
+    return count ?? 0;
+  }
+
+  async countAdmins(): Promise<number> {
+    const { count } = await this.sb()
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "admin");
+    return count ?? 0;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+    const patch: Record<string, unknown> = {};
+    if (updates.name !== undefined) patch.name = updates.name;
+    if (updates.avatar !== undefined) patch.avatar = updates.avatar;
+    if (updates.phone !== undefined) patch.phone = updates.phone;
+    if (updates.location !== undefined) patch.location = updates.location;
+    if (updates.householdSize !== undefined)
+      patch.household_size = updates.householdSize;
+    if (updates.householdNotes !== undefined)
+      patch.household_notes = updates.householdNotes;
+
+    if (Object.keys(patch).length === 0) {
+      return (await this.getUserById(id)) ?? null;
     }
-    return { ...EMPTY_STATE };
-  }
 
-  private write(data: DatabaseSchema) {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const tempPath = `${DB_FILE_PATH}.${process.pid}.tmp`;
-    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
-    fs.renameSync(tempPath, DB_FILE_PATH);
-  }
-
-  /**
-   * Runs `mutator` while holding an exclusive cross-process lock, so two
-   * requests (e.g. two Safaricom callbacks) cannot interleave a
-   * read-modify-write and double-lock a worker. Returns the mutator's result.
-   */
-  private transaction<T>(mutator: (data: DatabaseSchema) => T): T {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-
-    const deadline = Date.now() + 10_000;
-    let lockHandle: number | null = null;
-
-    while (lockHandle === null) {
-      try {
-        lockHandle = fs.openSync(LOCK_FILE_PATH, "wx");
-      } catch (error: any) {
-        if (error?.code !== "EEXIST") throw error;
-        if (Date.now() > deadline) {
-          // Stale lock recovery: a crashed process should not wedge the store.
-          try {
-            const age = Date.now() - fs.statSync(LOCK_FILE_PATH).mtimeMs;
-            if (age > 15_000) fs.unlinkSync(LOCK_FILE_PATH);
-          } catch {
-            /* another worker removed it first */
-          }
-        }
-        sleep(25);
-      }
-    }
-
-    try {
-      const data = this.read();
-      const result = mutator(data);
-      this.write(data);
-      return result;
-    } finally {
-      try {
-        fs.closeSync(lockHandle);
-      } catch {
-        /* already closed */
-      }
-      try {
-        fs.unlinkSync(LOCK_FILE_PATH);
-      } catch {
-        /* already removed */
-      }
-    }
-  }
-
-  // ── Users ────────────────────────────────────────────────────────────────
-
-  getUsers(): User[] {
-    return this.read().users;
-  }
-
-  getUserById(id: string): User | undefined {
-    return this.read().users.find((user) => user.id === id);
-  }
-
-  getUserByEmail(email: string): User | undefined {
-    const target = email.trim().toLowerCase();
-    return this.read().users.find(
-      (user) => user.email?.toLowerCase() === target,
-    );
-  }
-
-  countUsers(): number {
-    return this.read().users.length;
-  }
-
-  countAdmins(): number {
-    return this.read().users.filter((user) => user.role === "admin").length;
-  }
-
-  createUser(user: User): User {
-    return this.transaction((data) => {
-      data.users.push(user);
-      return user;
-    });
-  }
-
-  updateUser(id: string, updates: Partial<User>): User | null {
-    return this.transaction((data) => {
-      const index = data.users.findIndex((user) => user.id === id);
-      if (index === -1) return null;
-      data.users[index] = { ...data.users[index], ...updates };
-      return data.users[index];
-    });
+    const { data, error } = await this.sb()
+      .from("profiles")
+      .update(patch)
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (error || !data) return null;
+    return mapProfile(data as ProfileRow);
   }
 
   // ── Worker profiles ──────────────────────────────────────────────────────
 
   /**
-   * Directory listing. A profile is only returned when the worker's account is
-   * approved AND their ID verification has passed — unless the caller explicitly
-   * asks for unverified profiles for internal/admin use.
+   * Public directory. RLS already hides unapproved/unverified workers; the
+   * explicit filter here documents the rule and keeps local behaviour identical.
    */
-  getWorkerProfiles(
-    onlyPublic: boolean = true,
-  ): (WorkerProfile & { user: User })[] {
-    const data = this.read();
-    return data.workerProfiles
-      .map((profile) => {
-        const user = data.users.find(
-          (candidate) => candidate.id === profile.userId,
-        );
-        return user ? { ...profile, user } : null;
+  async getWorkerProfiles(
+    onlyPublic = true,
+  ): Promise<(WorkerProfile & { user: User })[]> {
+    const { data, error } = await this.sb()
+      .from("worker_profiles")
+      .select("*, profiles:user_id (*)");
+
+    if (error) throw new Error(error.message);
+
+    return (data ?? [])
+      .map((row: any) => {
+        const profile = row.profiles;
+        if (!profile) return null;
+        const user = mapProfile(profile as ProfileRow);
+        if (onlyPublic) {
+          if (
+            user.idVerificationStatus !== "verified" ||
+            user.accountStatus !== "approved"
+          ) {
+            return null;
+          }
+        }
+        return { ...mapWorkerProfile(row), user };
       })
-      .filter((profile): profile is WorkerProfile & { user: User } =>
-        Boolean(profile),
-      )
-      .filter((profile) =>
-        onlyPublic
-          ? profile.user.idVerificationStatus === "verified" &&
-            profile.user.accountStatus === "approved"
-          : true,
-      );
+      .filter((row): row is WorkerProfile & { user: User } => Boolean(row));
   }
 
-  getWorkerProfileByUserId(
+  async getWorkerProfileByUserId(
     userId: string,
-  ): (WorkerProfile & { user: User }) | null {
-    const data = this.read();
-    const profile = data.workerProfiles.find(
-      (candidate) => candidate.userId === userId,
-    );
-    if (!profile) return null;
-    const user = data.users.find((candidate) => candidate.id === userId);
-    if (!user) return null;
-    return { ...profile, user };
+  ): Promise<(WorkerProfile & { user: User }) | null> {
+    const { data, error } = await this.sb()
+      .from("worker_profiles")
+      .select("*, profiles:user_id (*)")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    const row: any = data;
+    if (!row.profiles) return null;
+    return {
+      ...mapWorkerProfile(row),
+      user: mapProfile(row.profiles as ProfileRow),
+    };
   }
 
-  updateWorkerProfile(
+  async updateWorkerProfile(
     userId: string,
     updates: Partial<WorkerProfile>,
-  ): WorkerProfile | null {
-    // The platform hiring fee is fixed and can never be set by a worker.
-    const { hireFee: _ignored, ...safeUpdates } = updates;
-    return this.transaction((data) => {
-      const index = data.workerProfiles.findIndex(
-        (profile) => profile.userId === userId,
-      );
-      if (index === -1) {
-        const created: WorkerProfile = {
-          id: "prof_" + userId,
-          userId,
-          headline: "Domestic Helper",
-          bio: "",
-          services: ["Housekeeping"],
-          expectedDailySalary: 8,
-          expectedMonthlySalary: 208,
-          engagementTypes: ["daily", "monthly"],
-          location: "Kenya",
-          serviceRadiusKm: 20,
-          yearsExperience: 0,
-          rating: 0,
-          reviewCount: 0,
-          languages: ["English", "Swahili"],
-          policeClearanceVerified: false,
-          backgroundCheckVerified: false,
-          referenceCount: 0,
-          liveInAvailable: false,
-          availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-          skills: [],
-          ...safeUpdates,
-          hireFee: CONSTANT_HIRING_FEE_USD,
-        };
-        data.workerProfiles.push(created);
-        return created;
-      }
-      data.workerProfiles[index] = {
-        ...data.workerProfiles[index],
-        ...safeUpdates,
-        hireFee: CONSTANT_HIRING_FEE_USD,
-      };
-      return data.workerProfiles[index];
-    });
+  ): Promise<WorkerProfile | null> {
+    const patch: Record<string, unknown> = {};
+    if (updates.headline !== undefined) patch.headline = updates.headline;
+    if (updates.bio !== undefined) patch.bio = updates.bio;
+    if (updates.services !== undefined) patch.services = updates.services;
+    if (updates.expectedDailySalary !== undefined)
+      patch.expected_daily_salary = updates.expectedDailySalary;
+    if (updates.expectedMonthlySalary !== undefined)
+      patch.expected_monthly_salary = updates.expectedMonthlySalary;
+    if (updates.engagementTypes !== undefined)
+      patch.engagement_types = updates.engagementTypes;
+    if (updates.location !== undefined) patch.location = updates.location;
+    if (updates.serviceRadiusKm !== undefined)
+      patch.service_radius_km = updates.serviceRadiusKm;
+    if (updates.yearsExperience !== undefined)
+      patch.years_experience = updates.yearsExperience;
+    if (updates.languages !== undefined) patch.languages = updates.languages;
+    if (updates.skills !== undefined) patch.skills = updates.skills;
+    if (updates.liveInAvailable !== undefined)
+      patch.live_in_available = updates.liveInAvailable;
+    if (updates.availableDays !== undefined)
+      patch.available_days = updates.availableDays;
+
+    const { data, error } = await this.sb()
+      .from("worker_profiles")
+      .update(patch)
+      .eq("user_id", userId)
+      .select("*")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapWorkerProfile(data);
   }
 
   // ── Bookings ─────────────────────────────────────────────────────────────
 
-  getBookings(): Booking[] {
-    return this.read().bookings;
+  async getBookings(): Promise<Booking[]> {
+    const { data, error } = await this.sb()
+      .from("bookings")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapBooking);
   }
 
-  getBookingById(id: string): Booking | undefined {
-    return this.read().bookings.find((booking) => booking.id === id);
+  async getBookingById(id: string): Promise<Booking | undefined> {
+    const { data, error } = await this.sb()
+      .from("bookings")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapBooking(data);
   }
 
-  getBookingByRef(bookingRef: string): Booking | undefined {
-    const target = bookingRef.trim().toUpperCase();
-    return this.read().bookings.find(
-      (booking) => booking.bookingRef?.toUpperCase() === target,
-    );
+  async getBookingsForWorker(workerId: string): Promise<Booking[]> {
+    const { data, error } = await this.sb()
+      .from("bookings")
+      .select("*")
+      .eq("worker_id", workerId)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapBooking);
   }
 
-  getBookingsForWorker(workerId: string): Booking[] {
-    return this.read().bookings.filter(
-      (booking) =>
-        booking.workerId === workerId && booking.status !== "cancelled",
-    );
+  async getBookingsForClient(clientId: string): Promise<Booking[]> {
+    const { data, error } = await this.sb()
+      .from("bookings")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapBooking);
   }
 
-  getBookingsForClient(clientId: string): Booking[] {
-    return this.read().bookings.filter(
-      (booking) => booking.clientId === clientId,
-    );
-  }
-
-  isWorkerExclusivelyAvailable(
+  async isWorkerExclusivelyAvailable(
     workerId: string,
     startDate: string,
     endDate: string,
-  ): boolean {
-    return this.isWorkerAvailable(this.read(), workerId, startDate, endDate);
-  }
+  ): Promise<boolean> {
+    const { data, error } = await this.sb()
+      .from("bookings")
+      .select("id,start_date,end_date")
+      .eq("worker_id", workerId)
+      .in("status", ["confirmed_exclusive", "in_progress"]);
 
-  private isWorkerAvailable(
-    data: DatabaseSchema,
-    workerId: string,
-    startDate: string,
-    endDate: string,
-  ): boolean {
-    const toTime = (dateString: string) => {
-      const [year, month, day] = dateString.split("-").map(Number);
-      const value = Date.UTC(year, month - 1, day);
-      return Number.isNaN(value) ? null : value;
-    };
+    if (error) throw new Error(error.message);
 
-    const requestStart = toTime(startDate);
-    const requestEnd = toTime(endDate);
-    if (requestStart === null || requestEnd === null) return false;
-
-    const active = data.bookings.filter(
-      (booking) =>
-        booking.workerId === workerId &&
-        (booking.status === "confirmed_exclusive" ||
-          booking.status === "in_progress"),
-    );
-
-    for (const booking of active) {
-      const bookingStart = toTime(booking.startDate);
-      const bookingEnd = toTime(booking.endDate);
-      if (
-        bookingStart !== null &&
-        bookingEnd !== null &&
-        requestStart <= bookingEnd &&
-        requestEnd >= bookingStart
-      ) {
-        return false;
-      }
+    for (const row of data ?? []) {
+      const overlaps = startDate <= row.end_date && endDate >= row.start_date;
+      if (overlaps) return false;
     }
     return true;
   }
 
-  createBooking(booking: Booking): Booking {
-    return this.transaction((data) => {
-      data.bookings.unshift(booking);
-      return booking;
-    });
+  async createBooking(booking: Booking): Promise<Booking> {
+    const { data, error } = await this.sb()
+      .from("bookings")
+      .insert({
+        booking_ref: booking.bookingRef,
+        client_id: booking.clientId,
+        worker_id: booking.workerId,
+        service_name: booking.serviceName,
+        start_date: booking.startDate,
+        end_date: booking.endDate,
+        total_days: booking.totalDays,
+        platform_booking_fee: booking.platformBookingFee,
+        worker_expected_daily_salary: booking.workerExpectedDailySalary,
+        total_amount: booking.totalAmount,
+        status: booking.status,
+        escrow_status: booking.escrowStatus,
+        client_address: booking.clientAddress,
+        special_instructions: booking.specialInstructions ?? null,
+      })
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapBooking(data);
   }
 
-  updateBooking(id: string, updates: Partial<Booking>): Booking | null {
-    return this.transaction((data) => {
-      const index = data.bookings.findIndex((booking) => booking.id === id);
-      if (index === -1) return null;
-      data.bookings[index] = { ...data.bookings[index], ...updates };
-      return data.bookings[index];
-    });
+  /** Used by server-side status transitions (service role bypasses RLS). */
+  async updateBookingAsService(
+    id: string,
+    updates: Record<string, unknown>,
+  ): Promise<void> {
+    const sb = createAdminClient();
+    const { error } = await sb.from("bookings").update(updates).eq("id", id);
+    if (error) throw new Error(error.message);
   }
 
   // ── M-Pesa payments ──────────────────────────────────────────────────────
 
-  createMpesaPayment(payment: MpesaPayment): MpesaPayment {
-    return this.transaction((data) => {
-      data.payments.unshift(payment);
-      return payment;
-    });
+  async createMpesaPayment(payment: MpesaPayment): Promise<MpesaPayment> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("mpesa_payments")
+      .insert({
+        booking_id: payment.bookingId,
+        client_id: payment.clientId,
+        amount_kes: payment.amountKes,
+        phone_number: payment.phoneNumber,
+        status: payment.status,
+        merchant_request_id: payment.merchantRequestId ?? null,
+        checkout_request_id: payment.checkoutRequestId ?? null,
+        paybill_number: payment.paybillNumber ?? null,
+        account_reference: payment.accountReference ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return mapPayment(data);
   }
 
-  getMpesaPaymentById(id: string): MpesaPayment | undefined {
-    return this.read().payments.find((payment) => payment.id === id);
+  async getMpesaPaymentById(id: string): Promise<MpesaPayment | undefined> {
+    const { data, error } = await this.sb()
+      .from("mpesa_payments")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapPayment(data);
   }
 
-  getMpesaPaymentByCheckoutRequestId(
+  async getMpesaPaymentByCheckoutRequestId(
     checkoutRequestId: string,
-  ): MpesaPayment | undefined {
-    return this.read().payments.find(
-      (payment) => payment.checkoutRequestId === checkoutRequestId,
-    );
+  ): Promise<MpesaPayment | undefined> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("mpesa_payments")
+      .select("*")
+      .eq("checkout_request_id", checkoutRequestId)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapPayment(data);
   }
 
-  getMpesaPaymentsForBooking(bookingId: string): MpesaPayment[] {
-    return this.read().payments.filter(
-      (payment) => payment.bookingId === bookingId,
-    );
-  }
-
-  getPendingMpesaPaymentForBooking(
+  async getPendingMpesaPaymentForBooking(
     bookingId: string,
-  ): MpesaPayment | undefined {
-    return this.read().payments.find(
-      (payment) =>
-        payment.bookingId === bookingId && payment.status === "pending",
-    );
-  }
-
-  getPaidMpesaPaymentForBooking(bookingId: string): MpesaPayment | undefined {
-    return this.read().payments.find(
-      (payment) => payment.bookingId === bookingId && payment.status === "paid",
-    );
-  }
-
-  updateMpesaPayment(
-    id: string,
-    updates: Partial<MpesaPayment>,
-  ): MpesaPayment | null {
-    return this.transaction((data) => {
-      const index = data.payments.findIndex((payment) => payment.id === id);
-      if (index === -1) return null;
-      data.payments[index] = {
-        ...data.payments[index],
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
-      return data.payments[index];
-    });
+  ): Promise<MpesaPayment | undefined> {
+    const { data, error } = await this.sb()
+      .from("mpesa_payments")
+      .select("*")
+      .eq("booking_id", bookingId)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapPayment(data);
   }
 
   /**
-   * The single operation that turns a provider-confirmed payment into an
-   * exclusive booking. Runs in one locked transaction and is idempotent, because
-   * Safaricom may deliver the same callback more than once. If the worker is no
-   * longer available, the payment is retained as "paid" (not failed) so an admin
-   * can refund it — the money really did leave the client's account.
+   * Turns a provider-confirmed payment into an exclusive booking.
+   *
+   * Runs with the service-role client (called from the Safaricom callback,
+   * which has no user session). The database trigger `prevent_double_booking`
+   * independently rejects overlapping locks, so this is safe even if two
+   * callbacks arrive at once.
    */
-  confirmMpesaPayment(
+  async confirmMpesaPayment(
     paymentId: string,
     receipt: string,
     rawCallback: Record<string, unknown>,
-  ): Booking | null {
-    return this.transaction((data) => {
-      const payment = data.payments.find(
-        (candidate) => candidate.id === paymentId,
-      );
-      if (!payment) return null;
-      const booking = data.bookings.find(
-        (candidate) => candidate.id === payment.bookingId,
-      );
-      if (!booking) return null;
+  ): Promise<Booking | null> {
+    const sb = createAdminClient();
 
-      // Idempotency: already processed.
-      if (payment.status === "paid" && booking.status === "confirmed_exclusive")
-        return booking;
+    const { data: paymentRow, error: payErr } = await sb
+      .from("mpesa_payments")
+      .select("*")
+      .eq("id", paymentId)
+      .maybeSingle();
+    if (payErr || !paymentRow) return null;
 
-      const now = new Date().toISOString();
-      const workerFree = this.isWorkerAvailable(
-        data,
-        booking.workerId,
-        booking.startDate,
-        booking.endDate,
-      );
+    const payment = mapPayment(paymentRow);
 
-      if (!workerFree && booking.status !== "confirmed_exclusive") {
-        payment.status = "paid";
-        payment.mpesaReceiptNumber = receipt;
-        payment.paidAt = now;
-        payment.rawCallback = rawCallback;
-        payment.resultDescription =
-          "Payment received, but the worker was already locked. Refund required.";
-        payment.updatedAt = now;
-        booking.paymentStatus = "paid";
-        booking.paymentTransactionRef = receipt;
-        booking.paymentFailureReason =
-          "Worker was no longer available when the payment confirmation arrived. Refund required.";
-        booking.reservationExpiresAt = undefined;
-        return null;
-      }
+    const { data: bookingRow, error: bkgErr } = await sb
+      .from("bookings")
+      .select("*")
+      .eq("id", payment.bookingId)
+      .maybeSingle();
+    if (bkgErr || !bookingRow) return null;
 
-      payment.status = "paid";
-      payment.mpesaReceiptNumber = receipt;
-      payment.paidAt = now;
-      payment.rawCallback = rawCallback;
-      payment.resultDescription = "Payment confirmed by Safaricom.";
-      payment.updatedAt = now;
+    const booking = mapBooking(bookingRow);
 
-      booking.status = "confirmed_exclusive";
-      booking.escrowStatus = "holding";
-      booking.paymentStatus = "paid";
-      booking.paymentMethod = "M-Pesa STK Push";
-      booking.paymentTransactionRef = receipt;
-      booking.paidAt = now;
-      booking.reservationExpiresAt = undefined;
-      booking.paymentFailureReason = undefined;
+    // Idempotency: Safaricom may deliver the same callback repeatedly.
+    if (payment.status === "paid" && booking.status === "confirmed_exclusive") {
       return booking;
-    });
+    }
+
+    const now = new Date().toISOString();
+
+    await sb
+      .from("mpesa_payments")
+      .update({
+        status: "paid",
+        mpesa_receipt_number: receipt,
+        paid_at: now,
+        raw_callback: rawCallback,
+        result_description: "Payment confirmed by Safaricom.",
+      })
+      .eq("id", paymentId);
+
+    const { data: updated, error: updErr } = await sb
+      .from("bookings")
+      .update({
+        status: "confirmed_exclusive",
+        escrow_status: "holding",
+        payment_status: "paid",
+        payment_method: "M-Pesa STK Push",
+        payment_transaction_ref: receipt,
+        paid_at: now,
+        reservation_expires_at: null,
+        payment_failure_reason: null,
+      })
+      .eq("id", booking.id)
+      .select("*")
+      .single();
+
+    if (updErr) {
+      // A unique/exclusion violation means another booking locked first; the
+      // money is real, so mark it for an admin refund rather than failing it.
+      await sb
+        .from("bookings")
+        .update({
+          payment_status: "paid",
+          payment_transaction_ref: receipt,
+          payment_failure_reason:
+            "Worker was no longer available when the payment confirmation arrived. Refund required.",
+        })
+        .eq("id", booking.id);
+      await sb
+        .from("mpesa_payments")
+        .update({
+          result_description:
+            "Payment received, but the worker was already locked. Refund required.",
+        })
+        .eq("id", paymentId);
+      return null;
+    }
+
+    return mapBooking(updated);
   }
 
-  failMpesaPayment(
+  async failMpesaPayment(
     paymentId: string,
     reason: string,
     resultCode?: number,
     rawCallback?: Record<string, unknown>,
-  ): MpesaPayment | null {
-    return this.transaction((data) => {
-      const payment = data.payments.find(
-        (candidate) => candidate.id === paymentId,
-      );
-      if (!payment) return null;
-      if (payment.status === "paid") return payment; // never downgrade a real payment
-      payment.status = "failed";
-      payment.resultCode = resultCode;
-      payment.resultDescription = reason;
-      payment.rawCallback = rawCallback;
-      payment.updatedAt = new Date().toISOString();
-      const booking = data.bookings.find(
-        (candidate) => candidate.id === payment.bookingId,
-      );
-      if (booking && booking.status !== "confirmed_exclusive") {
-        booking.paymentStatus = "failed";
-        booking.paymentFailureReason = reason;
-        booking.reservationExpiresAt = undefined;
-      }
-      return payment;
-    });
+  ): Promise<MpesaPayment | null> {
+    const sb = createAdminClient();
+
+    const { data: existing } = await sb
+      .from("mpesa_payments")
+      .select("*")
+      .eq("id", paymentId)
+      .maybeSingle();
+    if (!existing) return null;
+    if (existing.status === "paid") return mapPayment(existing); // never downgrade
+
+    const { data, error } = await sb
+      .from("mpesa_payments")
+      .update({
+        status: "failed",
+        result_code: resultCode ?? null,
+        result_description: reason,
+        raw_callback: rawCallback ?? null,
+      })
+      .eq("id", paymentId)
+      .select("*")
+      .single();
+    if (error || !data) return null;
+
+    await sb
+      .from("bookings")
+      .update({
+        payment_status: "failed",
+        payment_failure_reason: reason,
+        reservation_expires_at: null,
+      })
+      .eq("id", existing.booking_id)
+      .neq("status", "confirmed_exclusive");
+
+    return mapPayment(data);
   }
 
   // ── ID verification ──────────────────────────────────────────────────────
 
-  submitIdVerification(
+  async submitIdVerification(
     userId: string,
     idType: "national_id" | "passport" | "drivers_license",
     idNumber: string,
     idDocumentUrl: string,
     selfieUrl: string,
     idDocumentBackUrl?: string,
-  ): User | null {
-    return this.updateUser(userId, {
-      idVerificationStatus: "pending",
-      idType,
-      idNumber,
-      idDocumentUrl,
-      idDocumentBackUrl,
-      selfieUrl,
-      submittedAt: new Date().toISOString(),
-      rejectionReason: undefined,
-    });
+  ): Promise<User | null> {
+    const { data, error } = await this.sb()
+      .from("profiles")
+      .update({
+        id_verification_status: "pending",
+        id_type: idType,
+        id_number: idNumber,
+        id_document_url: idDocumentUrl,
+        id_document_back_url: idDocumentBackUrl ?? null,
+        selfie_url: selfieUrl,
+        submitted_at: new Date().toISOString(),
+        rejection_reason: null,
+      })
+      .eq("id", userId)
+      .select("*")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapProfile(data as ProfileRow);
   }
 
-  reviewIdVerification(
+  // ── Admin review (service role) ──────────────────────────────────────────
+
+  async reviewIdVerification(
     userId: string,
     decision: "approve" | "reject",
     rejectionReason?: string,
-  ): User | null {
+  ): Promise<User | null> {
+    const sb = createAdminClient();
     const status: VerificationStatus =
       decision === "approve" ? "verified" : "rejected";
-    return this.updateUser(userId, {
-      idVerificationStatus: status,
-      verifiedAt: decision === "approve" ? new Date().toISOString() : undefined,
-      rejectionReason:
-        decision === "reject"
-          ? rejectionReason || "Document details could not be verified."
-          : undefined,
-    });
+
+    const { data, error } = await sb
+      .from("profiles")
+      .update({
+        id_verification_status: status,
+        verified_at: decision === "approve" ? new Date().toISOString() : null,
+        rejection_reason:
+          decision === "reject"
+            ? rejectionReason || "Document details could not be verified."
+            : null,
+      })
+      .eq("id", userId)
+      .select("*")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapProfile(data as ProfileRow);
   }
 
-  // ── Account approval ─────────────────────────────────────────────────────
-
-  /** New client/worker accounts are created pending admin approval. */
-  reviewAccount(
+  async reviewAccount(
     userId: string,
     decision: "approve" | "reject" | "suspend",
     adminId: string,
     reason?: string,
-  ): User | null {
+  ): Promise<User | null> {
+    const sb = createAdminClient();
     const now = new Date().toISOString();
-    const updates: Partial<User> = {
-      accountStatus:
-        decision === "approve"
-          ? "approved"
-          : decision === "suspend"
-            ? "suspended"
-            : "rejected",
-      approvedAt: decision === "approve" ? now : undefined,
-      approvedBy: decision === "approve" ? adminId : undefined,
-      accountStatusReason: decision === "approve" ? undefined : reason,
-    };
-    const updated = this.updateUser(userId, updates);
-    if (updated && decision === "approve" && updated.role === "worker") {
-      this.updateWorkerProfile(userId, {
-        policeClearanceVerified: true,
-        backgroundCheckVerified: true,
-      });
-    }
-    return updated;
+    const status: AccountStatus =
+      decision === "approve"
+        ? "approved"
+        : decision === "suspend"
+          ? "suspended"
+          : "rejected";
+
+    const { data, error } = await sb
+      .from("profiles")
+      .update({
+        account_status: status,
+        approved_at: decision === "approve" ? now : null,
+        approved_by: decision === "approve" ? adminId : null,
+        account_status_reason: decision === "approve" ? null : (reason ?? null),
+      })
+      .eq("id", userId)
+      .select("*")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapProfile(data as ProfileRow);
   }
 
   // ── Reviews ──────────────────────────────────────────────────────────────
 
-  getReviewsForWorker(workerId: string): Review[] {
-    return this.read().reviews.filter((review) => review.workerId === workerId);
+  async getReviewsForWorker(workerId: string): Promise<Review[]> {
+    const { data, error } = await this.sb()
+      .from("reviews")
+      .select("*")
+      .eq("worker_id", workerId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapReview);
   }
 
-  addReview(review: Review): Review {
-    return this.transaction((data) => {
-      data.reviews.unshift(review);
-      const workerReviews = data.reviews.filter(
-        (candidate) => candidate.workerId === review.workerId,
-      );
-      const average =
-        workerReviews.reduce((sum, candidate) => sum + candidate.rating, 0) /
-        (workerReviews.length || 1);
-      const profileIndex = data.workerProfiles.findIndex(
-        (profile) => profile.userId === review.workerId,
-      );
-      if (profileIndex !== -1) {
-        data.workerProfiles[profileIndex] = {
-          ...data.workerProfiles[profileIndex],
-          rating: Number(average.toFixed(2)),
-          reviewCount: workerReviews.length,
-        };
-      }
-      return review;
-    });
+  // ── Incident reports ─────────────────────────────────────────────────────
+
+  async getEmergencyAlarms(): Promise<EmergencyAlarm[]> {
+    const { data, error } = await this.sb()
+      .from("emergencies")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapAlarm);
   }
 
-  // ── Incident reports (Trust & Safety) ────────────────────────────────────
-
-  getEmergencyAlarms(): EmergencyAlarm[] {
-    return this.read().emergencies;
-  }
-
-  raiseEmergencyAlarm(alarmData: {
+  async raiseEmergencyAlarm(alarmData: {
     bookingId: string;
     bookingRef: string;
     raisedByUserId: string;
@@ -634,44 +716,47 @@ class Database {
     severity: "critical" | "urgent";
     details: string;
     location: string;
-  }): EmergencyAlarm {
-    return this.transaction((data) => {
-      const alarm: EmergencyAlarm = {
-        id: "alm_" + crypto.randomUUID(),
-        bookingId: alarmData.bookingId,
-        bookingRef: alarmData.bookingRef,
-        raisedByUserId: alarmData.raisedByUserId,
-        raisedByName: alarmData.raisedByName,
-        raisedByUserRole: alarmData.raisedByUserRole,
-        alarmType: alarmData.alarmType,
+  }): Promise<EmergencyAlarm> {
+    const { data, error } = await this.sb()
+      .from("emergencies")
+      .insert({
+        booking_id:
+          alarmData.bookingId && alarmData.bookingId !== "general"
+            ? alarmData.bookingId
+            : null,
+        booking_ref: alarmData.bookingRef,
+        raised_by_user_id: alarmData.raisedByUserId,
+        raised_by_name: alarmData.raisedByName,
+        raised_by_user_role: alarmData.raisedByUserRole,
+        alarm_type: alarmData.alarmType,
         severity: alarmData.severity,
         details: alarmData.details,
         location: alarmData.location,
-        status: "active",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      data.emergencies.unshift(alarm);
-      return alarm;
-    });
+      })
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapAlarm(data);
   }
 
-  updateEmergencyStatus(
+  async updateEmergencyStatus(
     alarmId: string,
     status: "active" | "responding" | "resolved",
     adminNotes?: string,
-  ): EmergencyAlarm | null {
-    return this.transaction((data) => {
-      const index = data.emergencies.findIndex((alarm) => alarm.id === alarmId);
-      if (index === -1) return null;
-      data.emergencies[index] = {
-        ...data.emergencies[index],
+  ): Promise<EmergencyAlarm | null> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("emergencies")
+      .update({
         status,
-        ...(adminNotes !== undefined && { adminNotes }),
-        updatedAt: new Date().toISOString(),
-      };
-      return data.emergencies[index];
-    });
+        ...(adminNotes !== undefined ? { admin_notes: adminNotes } : {}),
+      })
+      .eq("id", alarmId)
+      .select("*")
+      .maybeSingle();
+    if (error || !data) return null;
+    return mapAlarm(data);
   }
 }
 

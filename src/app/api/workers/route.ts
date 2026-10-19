@@ -2,19 +2,21 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { publicWorkerUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const service = searchParams.get("service");
   const maxPrice = searchParams.get("maxPrice");
   const minRating = searchParams.get("minRating");
   const search = searchParams.get("search");
-  // Directory results are always verified. Pending applicant data is private.
 
-  let profiles = db.getWorkerProfiles(true);
+  // Directory results are always approved + verified. RLS enforces this too.
+  let profiles = await db.getWorkerProfiles(true);
 
   if (service && service !== "All") {
     profiles = profiles.filter((p) =>
-      p.services.some((s) => s.toLowerCase() === service.toLowerCase())
+      p.services.some((s) => s.toLowerCase() === service.toLowerCase()),
     );
   }
 
@@ -39,10 +41,14 @@ export async function GET(req: Request) {
         p.user.name.toLowerCase().includes(q) ||
         p.headline.toLowerCase().includes(q) ||
         p.location.toLowerCase().includes(q) ||
-        p.services.some((s) => s.toLowerCase().includes(q))
+        p.services.some((s) => s.toLowerCase().includes(q)),
     );
   }
 
-  return NextResponse.json({ profiles: profiles.map((profile) => ({ ...profile, user: publicWorkerUser(profile.user) })) });
+  return NextResponse.json({
+    profiles: profiles.map((profile) => ({
+      ...profile,
+      user: publicWorkerUser(profile.user),
+    })),
+  });
 }
-

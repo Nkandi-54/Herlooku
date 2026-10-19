@@ -1,59 +1,123 @@
 # Herlooku
 
-Herlooku is a marketplace for verified domestic-work bookings. A booking becomes
+Herkooku is a marketplace for verified domestic-work bookings. A booking becomes
 exclusive only after Safaricom has confirmed its M-Pesa payment to the server.
+
+Authentication, the database and identity-document storage are provided by
+[Supabase](https://supabase.com).
 
 ## Run locally
 
 ```bash
 npm install
-copy .env.example .env.local
+copy .env.example .env.local   # then fill in the values described below
 npm run dev
 ```
 
-Register a new account to test the signed-session flow. The existing fixture data
-is development-only; legacy fixture passwords are upgraded to scrypt after a
-successful development login and are never accepted in production.
+## Supabase setup
+
+The schema, Row Level Security policies, triggers and storage buckets live in
+`supabase/migrations/` and are applied with the Supabase CLI:
+
+```bash
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase db push
+```
+
+That creates these tables:
+
+| Table | Purpose |
+| --- | --- |
+| `profiles` | One row per auth user: role, approval state, ID-verification state |
+| `worker_profiles` | Public worker directory entries |
+| `bookings` | Exclusive bookings, with a database-level double-booking guard |
+| `mpesa_payments` | Provider payment attempts and confirmed receipts |
+| `reviews` | Verified client reviews (rating aggregates maintained by trigger) |
+| `emergencies` | Trust & Safety incident reports |
+
+Two storage buckets are created: `identity-documents` (private — ID scans and
+selfies) and `avatars` (public).
+
+### Create the first administrator
+
+Register normally through the app, then promote the account in the SQL editor:
+
+```sql
+update public.profiles
+   set role = 'admin',
+       account_status = 'approved',
+       id_verification_status = 'verified',
+       approved_at = now()
+ where lower(email) = lower('you@example.com');
+```
+
+See `supabase/migrations/0002_promote_admin.sql`.
+
+## Security model
+
+Security is enforced in the database, not only in application code.
+
+- **Credentials** live in Supabase Auth. The application never stores or hashes
+  passwords.
+- **Row Level Security is enabled on every table.** The default is deny.
+- **No client or worker is visible before approval.** A worker profile is readable
+  by the public only when the account is `approved` *and* ID `verified`. Account
+  rows themselves are never enumerable by anonymous visitors.
+- **Privilege escalation is blocked by trigger.** A signed-in non-admin cannot
+  change their own `role`, `account_status`, verification state or rating.
+- **Identity documents are private.** They live in a private bucket scoped to the
+  owner's UID and are exposed only through 10-minute signed URLs issued to the
+  owner or an administrator.
+- **Payments are server-authoritative.** The browser cannot confirm a payment;
+  only the Safaricom callback locks a worker.
+- **Double-booking is impossible at the database level** via a range-overlap
+  trigger on active bookings.
+
+### Environment variables
+
+| Variable | Visibility | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Publishable / anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret** | Server-only; bypasses RLS. Never expose. |
+| `MPESA_*` | **Secret** | Daraja credentials and callback URL |
+
+`.env.local` is git-ignored. Never commit real credentials.
 
 ## Configure M-Pesa
 
-The payment code is complete and the flow below runs automatically. To switch it
-on, put real Daraja credentials in `.env.local` (local) or your hosting provider
+Put real Daraja credentials in `.env.local` (local) or your hosting provider
 (production). Until they are set, `POST /api/payments/mpesa/stk` returns HTTP 503
-with the list of missing variables, and `GET /api/payments/mpesa/config` reports
+with the list of missing variables and `GET /api/payments/mpesa/config` reports
 `configured: false`.
 
-1. Sign in at https://developer.safaricom.co.ke and create an app to get a
-   consumer key and secret.
-2. Copy the Lipa na M-Pesa passkey and shortcode for your Till or PayBill.
-3. Expose a public HTTPS callback. Locally, run `ngrok http 3000` and use the
-   resulting URL ending in `/api/payments/mpesa/callback`. Register that exact
-   URL in the Daraja portal.
+1. Sign in at https://developer.safaricom.co.ke and create an app for a consumer
+   key and secret.
+2. Copy the Lipa na M-Pesa passkey and the PayBill shortcode (542542).
+3. Expose a public HTTPS callback (`ngrok http 3000` locally) ending in
+   `/api/payments/mpesa/callback`, and register that exact URL in the Daraja
+   portal.
 4. Fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`,
-   `MPESA_PASSKEY` and `MPESA_CALLBACK_URL`. Use `MPESA_ENVIRONMENT=sandbox`
-   with sandbox credentials, then switch to `production`.
+   `MPESA_PASSKEY`, `MPESA_CALLBACK_URL` and `MPESA_ACCOUNT_NUMBER`
+   (01410637946150). Use `MPESA_ENVIRONMENT=sandbox` while testing, then switch
+   to `production`.
 5. Restart the server. `GET /api/payments/mpesa/config` should report
    `configured: true`.
 
-The default payer number offered at checkout is `NEXT_PUBLIC_DEFAULT_MPESA_NUMBER`
-(set to `+254740042359` locally). This is only a prefilled suggestion; the client
-can change it, and Safaricom always prompts whatever number was submitted.
-
-Once configured, the sequence is fully automatic:
+Once configured the sequence is automatic:
 
 1. Client creates a pending booking.
 2. `POST /api/payments/mpesa/stk` requests the PIN prompt.
 3. Safaricom calls `/api/payments/mpesa/callback`.
-4. The server matches the checkout request ID, amount (Ksh 3,000) and receipt,
-   then atomically marks the payment paid and the worker exclusive.
+4. The server matches the checkout request ID and amount, then atomically marks
+   the payment paid and the worker exclusive.
 
 The browser cannot verify a payment, submit a Till code, or lock a worker.
 
-## Production deployment requirements
+## Production checklist
 
-This repository currently uses `data/db.json`, which is appropriate only for a
-local demo. Before serving real customers, replace it with a managed transactional
-database and object storage for identity documents. Run the payment confirmation
-and the worker availability check in one database transaction, protect document
-access with short-lived signed URLs, configure backups/monitoring, and complete
-your privacy, safeguarding, refund, and incident-response policies.
+- [ ] Enable email confirmation in Supabase Auth
+- [ ] Enable Supabase backups and monitor `/api/payments/mpesa/config`
+- [ ] Set the service role key and M-Pesa credentials in the host environment
+- [ ] Complete privacy, safeguarding, refund and incident-response policies

@@ -17,6 +17,8 @@ next-env.d.ts
 /build
 
 # Runtime data & local databases
+# The app is fully Supabase-backed; no local datastore is used any more.
+/data/
 /data/*.local.json
 /data/*.bak
 *.log
@@ -47,3 +49,7 @@ ninja-check.png
 
 # Misc scratch output
 /scratch/*.tmp
+
+# Supabase CLI local state
+supabase/.temp/
+.supabase/

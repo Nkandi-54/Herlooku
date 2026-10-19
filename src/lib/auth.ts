@@ -1,36 +1,75 @@
 import "server-only";
 
-import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { User } from "@/types";
+import { createServerSupabase } from "@/lib/supabase/server";
 
-const COOKIE_NAME = "herlooku_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 12; // 12 hours
+/**
+ * Profile shape as stored in public.profiles. We map snake_case DB columns to
+ * the camelCase `User` type the rest of the application already uses.
+ */
+type ProfileRow = {
+  id: string;
+  email: string;
+  name: string;
+  role: "client" | "worker" | "admin";
+  avatar: string | null;
+  phone: string | null;
+  location: string | null;
+  household_size: string | null;
+  household_notes: string | null;
+  id_verification_status: "unverified" | "pending" | "verified" | "rejected";
+  id_type: "national_id" | "passport" | "drivers_license" | null;
+  id_number: string | null;
+  id_document_url: string | null;
+  id_document_back_url: string | null;
+  selfie_url: string | null;
+  rejection_reason: string | null;
+  submitted_at: string | null;
+  verified_at: string | null;
+  account_status: "pending" | "approved" | "suspended" | "rejected";
+  account_status_reason: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  last_login_at: string | null;
+  created_at: string;
+};
 
-function secret() {
-  const value = process.env.AUTH_SECRET;
-  if (!value && process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET must be set in production.");
-  }
-  return value || "development-only-secret-change-me";
+/** Map a database row to the application's `User` shape. */
+export function mapProfile(row: ProfileRow): User {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    avatar: row.avatar || "",
+    phone: row.phone || "",
+    location: row.location || "",
+    householdSize: row.household_size || undefined,
+    householdNotes: row.household_notes || undefined,
+    idVerificationStatus: row.id_verification_status,
+    idType: row.id_type || undefined,
+    idNumber: row.id_number || undefined,
+    idDocumentUrl: row.id_document_url || undefined,
+    idDocumentBackUrl: row.id_document_back_url || undefined,
+    selfieUrl: row.selfie_url || undefined,
+    rejectionReason: row.rejection_reason || undefined,
+    submittedAt: row.submitted_at || undefined,
+    verifiedAt: row.verified_at || undefined,
+    accountStatus: row.account_status,
+    accountStatusReason: row.account_status_reason || undefined,
+    approvedAt: row.approved_at || undefined,
+    approvedBy: row.approved_by || undefined,
+    lastLoginAt: row.last_login_at || undefined,
+    createdAt: row.created_at,
+  };
 }
 
-function sign(value: string) {
-  return crypto
-    .createHmac("sha256", secret())
-    .update(value)
-    .digest("base64url");
-}
-
-function safeEqual(left: string, right: string) {
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
-/** Strips server-only fields (the password hash) before returning a user to a client. */
+/**
+ * Strips server-only fields before returning a user to a client.
+ * (Supabase keeps credentials in auth.users, so there is no password on the
+ * profile row; this stays for consistent call sites.)
+ */
 export function publicUser(user: User | undefined | null) {
   if (!user) return null;
   const { password, ...safeUser } = user;
@@ -38,8 +77,8 @@ export function publicUser(user: User | undefined | null) {
 }
 
 /**
- * The reduced shape used in the public directory. Identity documents, phone
- * numbers, email addresses and credentials must never appear here.
+ * Directory-safe subset. Identity documents, phone numbers, emails and
+ * approval internals must never appear in the public worker listing.
  */
 export function publicWorkerUser(user: User) {
   return {
@@ -55,146 +94,77 @@ export function publicWorkerUser(user: User) {
 }
 
 /**
- * Reads the signed session cookie and resolves the matching user. Returns null
- * when there is no valid session — there is deliberately NO fallback to any
- * stored "active user", so an unauthenticated request can never be treated as a
- * logged-in account.
+ * Resolve the signed-in user from Supabase Auth and their profile row.
+ * Returns null when there is no valid session.
  */
-export function getAuthenticatedUser(req: Request): User | null {
-  const raw = req.headers
-    .get("cookie")
-    ?.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`))?.[1];
-  if (!raw) return null;
-
-  const [encoded, signature] = raw.split(".");
-  if (!encoded || !signature) return null;
-  if (!safeEqual(sign(encoded), signature)) return null;
-
+export async function getAuthenticatedUser(
+  _req?: Request,
+): Promise<User | null> {
   try {
-    const session = JSON.parse(
-      Buffer.from(encoded, "base64url").toString("utf8"),
-    ) as {
-      sub: string;
-      exp: number;
-    };
-    if (!session.sub || session.exp < Date.now()) return null;
-    const user = db.getUserById(session.sub);
+    const supabase = createServerSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
-    // A suspended or rejected account loses access immediately, even mid-session.
-    if (user.role !== "admin" && user.accountStatus === "suspended")
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !profile) return null;
+
+    // A suspended account loses access immediately, even mid-session.
+    if (profile.role !== "admin" && profile.account_status === "suspended") {
       return null;
-    return user;
+    }
+
+    return mapProfile(profile as ProfileRow);
   } catch {
     return null;
   }
 }
 
-export function requireAuthenticatedUser(req: Request): User {
-  const user = getAuthenticatedUser(req);
+export async function requireAuthenticatedUser(req: Request): Promise<User> {
+  const user = await getAuthenticatedUser(req);
   if (!user) throw new Error("UNAUTHENTICATED");
   return user;
 }
 
-/**
- * Admin-only guard for internal operator endpoints. Throws "FORBIDDEN" when the
- * caller is authenticated but is not an administrator.
- */
-export function requireAdminUser(req: Request): User {
-  const user = requireAuthenticatedUser(req);
+/** Admin-only guard. Throws "FORBIDDEN" for authenticated non-admins. */
+export async function requireAdminUser(req: Request): Promise<User> {
+  const user = await requireAuthenticatedUser(req);
   if (user.role !== "admin") throw new Error("FORBIDDEN");
   return user;
 }
 
 /** A client or worker must be approved by an administrator before acting. */
-export function requireApprovedUser(req: Request): User {
-  const user = requireAuthenticatedUser(req);
+export async function requireApprovedUser(req: Request): Promise<User> {
+  const user = await requireAuthenticatedUser(req);
   if (user.role !== "admin" && user.accountStatus !== "approved") {
     throw new Error("ACCOUNT_NOT_APPROVED");
   }
   return user;
 }
 
-export function setSession(response: NextResponse, userId: string) {
-  const payload = Buffer.from(
-    JSON.stringify({
-      sub: userId,
-      exp: Date.now() + SESSION_TTL_SECONDS * 1000,
-    }),
-  ).toString("base64url");
-  response.cookies.set(COOKIE_NAME, `${payload}.${sign(payload)}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_TTL_SECONDS,
-    path: "/",
-  });
-  return response;
+/** Maps a thrown guard error to the correct HTTP status code. */
+export function errorStatus(error: any): number {
+  if (error?.message === "UNAUTHENTICATED") return 401;
+  if (error?.message === "FORBIDDEN") return 403;
+  if (error?.message === "ACCOUNT_NOT_APPROVED") return 403;
+  return 500;
 }
 
-export function clearSession(response: NextResponse) {
-  response.cookies.set(COOKIE_NAME, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
-  return response;
-}
-
-// ── Password hashing (scrypt) ────────────────────────────────────────────────
-
-export function hashPassword(password: string) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const digest = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `scrypt$${salt}$${digest}`;
-}
-
-export function verifyPassword(password: string, stored: string | undefined) {
-  if (!stored?.startsWith("scrypt$")) return false;
-  const [, salt, digest] = stored.split("$");
-  if (!salt || !digest) return false;
-  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
-  const left = Buffer.from(derived, "hex");
-  const right = Buffer.from(digest, "hex");
-  return left.length === right.length && crypto.timingSafeEqual(left, right);
-}
-
-// ── In-memory login throttling ───────────────────────────────────────────────
-// Cheap brute-force protection for a single-instance deployment. Replace with a
-// shared store (Redis) if you scale horizontally.
-
-const attempts = new Map<string, { count: number; firstAt: number }>();
-const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 8;
-
-function attemptKey(req: Request, identifier: string) {
-  const forwarded = req.headers.get("x-forwarded-for") || "";
-  const ip = forwarded.split(",")[0].trim() || "local";
-  return `${ip}:${identifier.toLowerCase()}`;
-}
-
-export function isLoginThrottled(req: Request, identifier: string): boolean {
-  const key = attemptKey(req, identifier);
-  const record = attempts.get(key);
-  if (!record) return false;
-  if (Date.now() - record.firstAt > ATTEMPT_WINDOW_MS) {
-    attempts.delete(key);
-    return false;
-  }
-  return record.count >= MAX_ATTEMPTS;
-}
-
-export function recordLoginFailure(req: Request, identifier: string) {
-  const key = attemptKey(req, identifier);
-  const record = attempts.get(key);
-  if (!record || Date.now() - record.firstAt > ATTEMPT_WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAt: Date.now() });
-    return;
-  }
-  record.count += 1;
-}
-
-export function clearLoginFailures(req: Request, identifier: string) {
-  attempts.delete(attemptKey(req, identifier));
+/** Consistent JSON error body for all route handlers. */
+export function jsonError(error: any, fallback = "Something went wrong.") {
+  const messages: Record<string, string> = {
+    UNAUTHENTICATED: "Sign in required.",
+    FORBIDDEN: "Administrator access required.",
+    ACCOUNT_NOT_APPROVED: "Your account is awaiting administrator approval.",
+  };
+  return NextResponse.json(
+    { error: messages[error?.message] || error?.message || fallback },
+    { status: errorStatus(error) },
+  );
 }

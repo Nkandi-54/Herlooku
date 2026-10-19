@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import {
-  hashPassword,
-  requireAuthenticatedUser,
-  verifyPassword,
-} from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +8,14 @@ export const dynamic = "force-dynamic";
  * POST /api/accounts/password
  *
  * Body: { currentPassword: string; newPassword: string }
- * Lets a signed-in user rotate their own password. Requires the current
- * password so a hijacked session cannot silently lock the owner out.
+ *
+ * Rotates the signed-in user's password through Supabase Auth. Supabase verifies
+ * the current password when we re-authenticate, so a hijacked session cannot
+ * silently lock the owner out.
  */
 export async function POST(req: Request) {
   try {
-    const user = requireAuthenticatedUser(req);
+    const user = await requireAuthenticatedUser(req);
     const { currentPassword, newPassword } = await req.json();
 
     if (!currentPassword || !newPassword) {
@@ -34,36 +32,41 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!verifyPassword(String(currentPassword), user.password)) {
-      return NextResponse.json(
-        { error: "Your current password is incorrect." },
-        { status: 401 },
-      );
-    }
-
-    if (verifyPassword(String(newPassword), user.password)) {
+    if (String(currentPassword) === String(newPassword)) {
       return NextResponse.json(
         { error: "Your new password must be different from the current one." },
         { status: 400 },
       );
     }
 
-    db.updateUser(user.id, { password: hashPassword(String(newPassword)) });
+    const supabase = createServerSupabase();
+
+    // Re-authenticate first: proves the caller knows the current password.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: String(currentPassword),
+    });
+
+    if (reauthError) {
+      return NextResponse.json(
+        { error: "Your current password is incorrect." },
+        { status: 401 },
+      );
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: String(newPassword),
+    });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     return NextResponse.json({
       success: true,
       message: "Your password has been updated.",
     });
   } catch (error: any) {
-    const status = error.message === "UNAUTHENTICATED" ? 401 : 500;
-    return NextResponse.json(
-      {
-        error:
-          error.message === "UNAUTHENTICATED"
-            ? "Sign in required."
-            : error.message,
-      },
-      { status },
-    );
+    return jsonError(error, "Could not update your password.");
   }
 }

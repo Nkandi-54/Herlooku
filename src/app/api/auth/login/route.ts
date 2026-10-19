@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import {
-  clearLoginFailures,
-  hashPassword,
-  isLoginThrottled,
-  publicUser,
-  recordLoginFailure,
-  setSession,
-  verifyPassword,
-} from "@/lib/auth";
-import { ensureAdminBootstrap } from "@/lib/bootstrap";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { mapProfile, publicUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +8,10 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/login
  *
  * Body: { email: string; password: string }
- * Authenticates against the scrypt password hash. On success, issues a signed,
- * httpOnly session cookie. Failed attempts are throttled per IP + identifier.
+ *
+ * Authenticates against Supabase Auth. Supabase owns password hashing,
+ * rate-limiting and the session cookies, so this handler never touches
+ * credentials directly.
  */
 export async function POST(req: Request) {
   try {
@@ -31,47 +24,54 @@ export async function POST(req: Request) {
       );
     }
 
-    const identifier = String(email).trim().toLowerCase();
+    const supabase = createServerSupabase();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: String(email).trim().toLowerCase(),
+      password: String(password),
+    });
 
-    if (isLoginThrottled(req, identifier)) {
+    if (error || !data.user) {
+      // Deliberately generic: never reveal whether the email exists.
+      return NextResponse.json(
+        { error: "Incorrect email or password." },
+        { status: 401 },
+      );
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError || !profile) {
       return NextResponse.json(
         {
-          error: "Too many failed attempts. Please try again in a few minutes.",
+          error:
+            "Your account profile could not be loaded. Please contact support.",
         },
-        { status: 429 },
+        { status: 500 },
       );
     }
 
-    const user = db.getUserByEmail(identifier);
-    if (!user) {
-      recordLoginFailure(req, identifier);
+    if (profile.account_status === "suspended") {
+      await supabase.auth.signOut();
       return NextResponse.json(
-        { error: "Incorrect email or password." },
-        { status: 401 },
+        { error: "This account has been suspended. Please contact support." },
+        { status: 403 },
       );
     }
 
-    // The first admin may be provisioned lazily from env credentials.
-    if (user.role === "admin") {
-      await ensureAdminBootstrap();
-    }
+    // Best-effort login timestamp.
+    void supabase
+      .from("profiles")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", data.user.id);
 
-    if (!verifyPassword(String(password), user.password)) {
-      recordLoginFailure(req, identifier);
-      return NextResponse.json(
-        { error: "Incorrect email or password." },
-        { status: 401 },
-      );
-    }
-
-    clearLoginFailures(req, identifier);
-    return setSession(
-      NextResponse.json({
-        success: true,
-        activeUser: publicUser(db.getUserById(user.id)),
-      }),
-      user.id,
-    );
+    return NextResponse.json({
+      success: true,
+      activeUser: publicUser(mapProfile(profile)),
+    });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Login failed." },

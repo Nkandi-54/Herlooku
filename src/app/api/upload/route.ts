@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
-// 5 MB limit — generous for profile photos while keeping the JSON file DB lean.
+// 5 MB limit — generous for ID scans and profile photos.
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 const ALLOWED_MIME: Record<string, string> = {
@@ -15,12 +15,25 @@ const ALLOWED_MIME: Record<string, string> = {
   "image/gif": "gif",
 };
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-
+/**
+ * POST /api/upload
+ *
+ * multipart/form-data with:
+ *   file   — the image
+ *   kind   — "avatar" (public bucket) or "identity" (private bucket)
+ *
+ * Identity documents are stored in the PRIVATE `identity-documents` bucket under
+ * a folder named after the owner's uid, so other users can never reach them.
+ * The API returns a storage path, not a public URL; the review UI requests a
+ * short-lived signed URL when it needs to display them.
+ */
 export async function POST(req: Request) {
   try {
+    const user = await requireAuthenticatedUser(req);
+
     const formData = await req.formData();
     const file = formData.get("file");
+    const kind = String(formData.get("kind") || "avatar");
 
     if (!file || typeof file === "string") {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
@@ -48,40 +61,48 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
-
-    // Sanitize original name for readability, but always prefix with a UUID
+    const bucket = kind === "identity" ? "identity-documents" : "avatars";
     const safeBase = (file.name || "photo")
       .replace(/\.[^.]+$/, "")
       .replace(/[^a-z0-9-_]/gi, "_")
       .slice(0, 40)
       .toLowerCase();
-    const fileName = `${safeBase}-${randomUUID().slice(0, 8)}.${ext}`;
-    const filePath = path.join(UPLOAD_DIR, fileName);
+    // Folder is always the user's uid so storage policies can scope access.
+    const path = `${user.id}/${safeBase}-${randomUUID().slice(0, 8)}.${ext}`;
 
-    fs.writeFileSync(filePath, bytes);
+    const supabase = createServerSupabase();
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(path, bytes, {
+        contentType: file.type,
+        upsert: false,
+      });
 
-    // Delete older uploads with the same base name to avoid unbounded growth
-    try {
-      const prefix = `${safeBase}-`;
-      fs.readdirSync(UPLOAD_DIR)
-        .filter((f) => f.startsWith(prefix) && f !== fileName)
-        .forEach((f) => fs.unlinkSync(path.join(UPLOAD_DIR, f)));
-    } catch {
-      // Non-fatal: keep serving the new upload even if cleanup fails
+    if (uploadError) {
+      return NextResponse.json(
+        { error: uploadError.message || "Upload failed." },
+        { status: 500 },
+      );
+    }
+
+    // Public buckets expose a CDN URL; private ones only return the path.
+    if (bucket === "avatars") {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return NextResponse.json({
+        success: true,
+        url: data.publicUrl,
+        path,
+        message: "Photo uploaded successfully.",
+      });
     }
 
     return NextResponse.json({
       success: true,
-      url: `/uploads/${fileName}`,
-      message: "Photo uploaded successfully.",
+      url: path,
+      path,
+      message: "Document uploaded securely.",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Upload failed." },
-      { status: 500 },
-    );
+    return jsonError(error, "Upload failed.");
   }
 }

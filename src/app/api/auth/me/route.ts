@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
  * GET /api/auth/me — returns the signed-in user only.
  *
  * There is deliberately no endpoint that impersonates another account or lists
- * every user; the previous "switch user" behaviour was a development mockup.
+ * every user.
  */
 export async function GET(req: Request) {
-  const activeUser = getAuthenticatedUser(req);
+  const activeUser = await getAuthenticatedUser(req);
   return NextResponse.json({ activeUser: publicUser(activeUser) });
 }

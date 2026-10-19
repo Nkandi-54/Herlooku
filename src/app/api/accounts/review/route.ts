@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { publicUser, requireAdminUser } from "@/lib/auth";
+import { jsonError, publicUser, requireAdminUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,13 +9,12 @@ export const dynamic = "force-dynamic";
  *
  * Body: { targetUserId: string; decision: "approve" | "reject" | "suspend"; reason?: string }
  *
- * Admin-only. Controls whether a client/worker account is allowed onto the
- * platform. Approval is what makes a worker visible in the public directory and
- * what allows a client to start bookings and payments.
+ * Admin-only. Approval is what makes a worker visible in the public directory
+ * and what allows a client to start bookings and payments.
  */
 export async function POST(req: Request) {
   try {
-    const admin = requireAdminUser(req);
+    const admin = await requireAdminUser(req);
     const body = await req.json();
     const { targetUserId, decision, reason } = body ?? {};
 
@@ -29,7 +28,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const target = db.getUserById(String(targetUserId));
+    const target = await db.getUserById(String(targetUserId));
     if (!target) {
       return NextResponse.json(
         { error: "Account not found." },
@@ -43,7 +42,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const updated = db.reviewAccount(target.id, decision, admin.id, reason);
+    const updated = await db.reviewAccount(
+      target.id,
+      decision,
+      admin.id,
+      reason,
+    );
     if (!updated) {
       return NextResponse.json(
         { error: "Account not found." },
@@ -63,20 +67,6 @@ export async function POST(req: Request) {
       }.`,
     });
   } catch (error: any) {
-    const status =
-      error.message === "UNAUTHENTICATED"
-        ? 401
-        : error.message === "FORBIDDEN"
-          ? 403
-          : 500;
-    return NextResponse.json(
-      {
-        error:
-          error.message === "FORBIDDEN"
-            ? "Administrator access required."
-            : error.message,
-      },
-      { status },
-    );
+    return jsonError(error, "Could not review the account.");
   }
 }

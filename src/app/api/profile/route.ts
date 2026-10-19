@@ -1,27 +1,31 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuthenticatedUser, publicUser } from "@/lib/auth";
+import { jsonError, publicUser, requireAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  let activeUser;
-  try { activeUser = requireAuthenticatedUser(req); } catch { return NextResponse.json({ error: "Sign in required." }, { status: 401 }); }
-  let workerProfile =
-    activeUser.role === "worker"
-      ? db.getWorkerProfileByUserId(activeUser.id)
-      : null;
+  try {
+    const activeUser = await requireAuthenticatedUser(req);
 
-  if (workerProfile && activeUser.role === "worker") {
-    // Workers can see their expected daily salary, but must never see the platform hiring fee or payment details.
-    const { hireFee, ...safeProfile } = workerProfile;
-    workerProfile = safeProfile as any;
+    let workerProfile =
+      activeUser.role === "worker"
+        ? await db.getWorkerProfileByUserId(activeUser.id)
+        : null;
+
+    if (workerProfile) {
+      // Workers must never see the platform hiring fee.
+      const { hireFee, ...safeProfile } = workerProfile;
+      workerProfile = safeProfile as any;
+    }
+
+    return NextResponse.json({
+      user: publicUser(activeUser),
+      workerProfile,
+    });
+  } catch (error: any) {
+    return jsonError(error, "Could not load your profile.");
   }
-
-  return NextResponse.json({
-    user: publicUser(activeUser),
-    workerProfile,
-  });
 }
 
 export async function PUT(req: Request) {
@@ -34,7 +38,7 @@ export async function POST(req: Request) {
 
 async function handleUpdate(req: Request) {
   try {
-    const activeUser = requireAuthenticatedUser(req);
+    const activeUser = await requireAuthenticatedUser(req);
     const body = await req.json();
     const {
       name,
@@ -46,38 +50,45 @@ async function handleUpdate(req: Request) {
       headline,
       bio,
       services,
-      hireFee,
       expectedDailySalary,
+      expectedMonthlySalary,
+      engagementTypes,
       yearsExperience,
       languages,
       skills,
       liveInAvailable,
     } = body;
 
-    // Update user record
-    const updatedUser = db.updateUser(activeUser.id, {
+    const updatedUser = await db.updateUser(activeUser.id, {
       ...(name && { name }),
       ...(location && { location }),
       ...(householdSize !== undefined && { householdSize }),
       ...(householdNotes !== undefined && { householdNotes }),
-      ...(avatar && { avatar }),
+      ...(avatar !== undefined && { avatar }),
     });
 
-    // If worker, update worker profile
     let updatedWorkerProfile = null;
     if (activeUser.role === "worker") {
-      updatedWorkerProfile = db.updateWorkerProfile(activeUser.id, {
+      updatedWorkerProfile = await db.updateWorkerProfile(activeUser.id, {
         ...(headline !== undefined && { headline }),
         ...(bio !== undefined && { bio }),
         ...(services !== undefined && { services }),
-        ...(expectedDailySalary !== undefined && { expectedDailySalary: Number(expectedDailySalary) }),
-        ...(hireFee !== undefined && { hireFee: Number(hireFee) }),
-        ...(yearsExperience !== undefined && { yearsExperience: Number(yearsExperience) }),
+        ...(expectedDailySalary !== undefined && {
+          expectedDailySalary: Number(expectedDailySalary),
+        }),
+        ...(expectedMonthlySalary !== undefined && {
+          expectedMonthlySalary: Number(expectedMonthlySalary),
+        }),
+        ...(engagementTypes !== undefined && { engagementTypes }),
+        ...(yearsExperience !== undefined && {
+          yearsExperience: Number(yearsExperience),
+        }),
         ...(languages !== undefined && { languages }),
         ...(skills !== undefined && { skills }),
         ...(liveInAvailable !== undefined && { liveInAvailable }),
         ...(location && { location }),
       });
+
       if (updatedWorkerProfile) {
         const { hireFee: _hf, ...safeUpdatedProfile } = updatedWorkerProfile;
         updatedWorkerProfile = safeUpdatedProfile as any;
@@ -91,7 +102,6 @@ async function handleUpdate(req: Request) {
       message: "Profile updated successfully!",
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(error, "Could not update your profile.");
   }
 }
-

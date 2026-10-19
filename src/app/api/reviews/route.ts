@@ -1,54 +1,77 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { Review } from "@/types";
-import { requireAuthenticatedUser } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
+/**
+ * POST /api/reviews
+ *
+ * Body: { bookingId, workerId, rating, comment }
+ *
+ * A client may review only their own COMPLETED booking. The RLS policy on
+ * public.reviews enforces this independently of this handler.
+ */
 export async function POST(req: Request) {
   try {
-    const activeUser = requireAuthenticatedUser(req);
+    const activeUser = await requireAuthenticatedUser(req);
     const body = await req.json();
     const { bookingId, workerId, rating, comment } = body;
 
     if (!bookingId || !workerId || !rating || !comment) {
       return NextResponse.json(
-        { error: "Missing required review fields (bookingId, workerId, rating, comment)." },
-        { status: 400 }
+        {
+          error:
+            "Missing required review fields (bookingId, workerId, rating, comment).",
+        },
+        { status: 400 },
       );
     }
 
-    const booking = db.getBookingById(bookingId);
-    if (!booking) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    }
-
-    if (booking.clientId !== activeUser.id && activeUser.role !== "admin") {
+    const numericRating = Number(rating);
+    if (
+      !Number.isInteger(numericRating) ||
+      numericRating < 1 ||
+      numericRating > 5
+    ) {
       return NextResponse.json(
-        { error: "You can only review bookings made by your account." },
-        { status: 403 }
+        { error: "Rating must be between 1 and 5." },
+        { status: 400 },
       );
     }
 
-    const newReview: Review = {
-      id: "rev_" + Date.now().toString(36),
-      bookingId,
-      clientId: activeUser.id,
-      clientName: activeUser.name,
-      clientAvatar: activeUser.avatar,
-      workerId,
-      rating: Number(rating),
-      comment,
-      date: new Date().toISOString().split("T")[0],
-    };
+    const supabase = createServerSupabase();
+    const { data, error } = await supabase
+      .from("reviews")
+      .insert({
+        booking_id: bookingId,
+        client_id: activeUser.id,
+        client_name: activeUser.name,
+        client_avatar: activeUser.avatar || "",
+        worker_id: workerId,
+        rating: numericRating,
+        comment: String(comment),
+      })
+      .select("*")
+      .single();
 
-    const created = db.addReview(newReview);
+    if (error) {
+      // Unique violation = this booking already has a review.
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "You have already reviewed this booking." },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     return NextResponse.json({
       success: true,
-      review: created,
+      review: data,
       message: "Thank you! Your verified review has been published.",
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message === "UNAUTHENTICATED" ? "Sign in required." : error.message }, { status: error.message === "UNAUTHENTICATED" ? 401 : 500 });
+    return jsonError(error, "Could not publish the review.");
   }
 }
-

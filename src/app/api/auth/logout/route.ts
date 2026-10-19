@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
-import { clearSession } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/auth/logout
- * Clears the active session by switching to a default state.
- */
+/** POST /api/auth/logout — revokes the Supabase session and clears its cookies. */
 export async function POST() {
-  return clearSession(NextResponse.json({ success: true, message: "Logged out successfully." }));
+  try {
+    const supabase = createServerSupabase();
+    await supabase.auth.signOut();
+  } catch {
+    /* Signing out is always treated as success. */
+  }
+  return NextResponse.json({
+    success: true,
+    message: "Logged out successfully.",
+  });
 }

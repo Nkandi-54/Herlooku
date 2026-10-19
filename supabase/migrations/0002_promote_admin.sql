@@ -1,0 +1,20 @@
+-- ============================================================================
+-- Promote an existing account to administrator
+-- ============================================================================
+-- Run this AFTER the person has signed up through the normal registration form.
+-- Replace the email below with the real administrator's email, then run.
+--
+--   update public.profiles
+--      set role = 'admin',
+--          account_status = 'approved',
+--          id_verification_status = 'verified',
+--          approved_at = now()
+--    where lower(email) = lower('admin@your-domain.example');
+--
+-- Verify with:
+--   select id, email, role, account_status from public.profiles where role = 'admin';
+--
+-- IMPORTANT: promoting an account must be done here in the SQL editor (or with
+-- the service-role key). The application cannot do it from the browser because
+-- the privilege-guard trigger rejects role changes for non-admins.
+-- ============================================================================

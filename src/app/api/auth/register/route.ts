@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { CONSTANT_HIRING_FEE_USD } from "@/types";
-import { hashPassword, publicUser, setSession } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { mapProfile, publicUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,16 +8,14 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/register
  *
  * Body: {
- *   name: string; email: string; password: string; phone: string;
- *   role: "client" | "worker";
- *   location?: string;
- *   // Worker-only extras:
- *   headline?: string; services?: string[]; expectedDailySalary?: number;
+ *   name, email, password, phone, role: "client" | "worker",
+ *   location?, headline?, services?, expectedDailySalary?
  * }
  *
- * New client and worker accounts start as `accountStatus: "pending"`. They can
- * sign in and complete ID verification, but they are NOT shown in the directory,
- * cannot book, and cannot be booked until an administrator approves the account.
+ * Creates the Supabase Auth user. A database trigger (handle_new_user) creates
+ * the matching public.profiles row with account_status = 'pending', so the new
+ * account is invisible to the rest of the platform until an administrator
+ * approves it.
  */
 export async function POST(req: Request) {
   try {
@@ -48,6 +45,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Users may only self-register as client or worker — never admin.
     if (!["client", "worker"].includes(role)) {
       return NextResponse.json(
         { error: "Role must be either 'client' or 'worker'." },
@@ -70,7 +68,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Phone must be a plausible Kenyan number; it is used for dispatch.
     const normalizedPhone = String(phone).replace(/[\s\-()]/g, "");
     if (!/^(\+?254|0)[17]\d{8}$/.test(normalizedPhone)) {
       return NextResponse.json(
@@ -79,73 +76,87 @@ export async function POST(req: Request) {
       );
     }
 
-    if (db.getUserByEmail(normalizedEmail)) {
-      return NextResponse.json(
-        {
-          error:
-            "An account with this email address already exists. Please log in.",
+    const supabase = createServerSupabase();
+
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password: String(password),
+      options: {
+        // Read by the handle_new_user trigger to populate the profile row.
+        data: {
+          name: name.trim(),
+          role,
+          phone: normalizedPhone,
+          location: location?.trim() || "Kenya",
         },
-        { status: 409 },
+      },
+    });
+
+    if (error) {
+      const message = /already registered|already exists/i.test(error.message)
+        ? "An account with this email address already exists. Please log in."
+        : error.message;
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    if (!data.user) {
+      return NextResponse.json(
+        { error: "Registration failed. Please try again." },
+        { status: 500 },
       );
     }
 
-    const id = "usr_" + crypto.randomUUID();
-    const newUser = db.createUser({
-      id,
-      name: name.trim(),
-      email: normalizedEmail,
-      password: hashPassword(String(password)),
-      role,
-      phone: normalizedPhone,
-      location: location?.trim() || "Kenya",
-      // Neutral default avatar — no third-party tracking pixel or invented identity.
-      avatar: "",
-      idVerificationStatus: "unverified",
-      // Invisible to the platform until an administrator approves the account.
-      accountStatus: "pending",
-      createdAt: new Date().toISOString(),
-    });
-
-    // Auto-create worker profile if registering as worker. It is not listed
-    // publicly until the account AND ID verification are both approved.
-    if (role === "worker") {
-      db.updateWorkerProfile(id, {
-        headline: headline?.trim() || "Domestic Helper",
-        bio: "",
-        services:
-          Array.isArray(services) && services.length
-            ? services
-            : ["Housekeeping"],
-        hireFee: CONSTANT_HIRING_FEE_USD,
-        expectedDailySalary: Number(expectedDailySalary) || 8,
-        expectedMonthlySalary: (Number(expectedDailySalary) || 8) * 26,
-        engagementTypes: ["daily", "monthly"],
-        location: location?.trim() || "Kenya",
-        serviceRadiusKm: 20,
-        yearsExperience: 0,
-        rating: 0,
-        reviewCount: 0,
-        languages: ["English", "Swahili"],
-        policeClearanceVerified: false,
-        backgroundCheckVerified: false,
-        referenceCount: 0,
-        liveInAvailable: false,
-        availableDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        skills: ["Cleaning", "Housekeeping"],
-      });
-    }
-
-    return setSession(
-      NextResponse.json(
+    // Email confirmation may be enabled in Supabase. In that case there is no
+    // session yet and the profile trigger still runs.
+    if (!data.session) {
+      return NextResponse.json(
         {
           success: true,
-          activeUser: publicUser(newUser),
+          requiresEmailConfirmation: true,
           message:
-            "Account created. An administrator will review your account; you can complete ID verification while you wait.",
+            "Check your inbox to confirm your email address. An administrator will review your account after that.",
         },
         { status: 201 },
-      ),
-      id,
+      );
+    }
+
+    // Create the worker profile shell (invisible until approved + verified).
+    if (role === "worker") {
+      await supabase.from("worker_profiles").upsert(
+        {
+          user_id: data.user.id,
+          headline: headline?.trim() || "Domestic Helper",
+          bio: "",
+          services:
+            Array.isArray(services) && services.length
+              ? services
+              : ["Housekeeping"],
+          expected_daily_salary: Number(expectedDailySalary) || 8,
+          expected_monthly_salary: (Number(expectedDailySalary) || 8) * 26,
+          engagement_types: ["daily", "monthly"],
+          location: location?.trim() || "Kenya",
+          languages: ["English", "Swahili"],
+          available_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+          skills: ["Cleaning", "Housekeeping"],
+        },
+        { onConflict: "user_id" },
+      );
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    return NextResponse.json(
+      {
+        success: true,
+        activeUser: profile ? publicUser(mapProfile(profile)) : null,
+        message:
+          "Account created. An administrator will review your account; you can complete ID verification while you wait.",
+      },
+      { status: 201 },
     );
   } catch (err: any) {
     return NextResponse.json(

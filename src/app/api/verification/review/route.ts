@@ -1,39 +1,49 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuthenticatedUser } from "@/lib/auth";
-import { publicUser } from "@/lib/auth";
+import { jsonError, publicUser, requireAdminUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
+/**
+ * POST /api/verification/review
+ *
+ * Body: { targetUserId: string; decision: "approve" | "reject"; rejectionReason?: string }
+ *
+ * Admin-only. Approving an ID marks the account ID-verified so it can appear in
+ * the directory (provided the account itself is also approved).
+ */
 export async function POST(req: Request) {
   try {
-    const activeUser = requireAuthenticatedUser(req);
-    if (activeUser.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden. Only administrators can review identity verification submissions." },
-        { status: 403 }
-      );
-    }
+    await requireAdminUser(req);
 
     const body = await req.json();
     const { targetUserId, decision, rejectionReason } = body;
 
-    if (!targetUserId || !decision || (decision !== "approve" && decision !== "reject")) {
+    if (
+      !targetUserId ||
+      !decision ||
+      (decision !== "approve" && decision !== "reject")
+    ) {
       return NextResponse.json(
-        { error: "Invalid review parameters. Required: targetUserId, decision ('approve' | 'reject')." },
-        { status: 400 }
+        {
+          error:
+            "Invalid review parameters. Required: targetUserId, decision ('approve' | 'reject').",
+        },
+        { status: 400 },
       );
     }
 
-    const updated = db.reviewIdVerification(targetUserId, decision, rejectionReason);
-    if (!updated) {
-      return NextResponse.json({ error: "Target user not found" }, { status: 404 });
-    }
+    const updated = await db.reviewIdVerification(
+      String(targetUserId),
+      decision,
+      rejectionReason,
+    );
 
-    // If target user is a worker and approved, also mark background checks verified
-    if (decision === "approve" && updated.role === "worker") {
-      db.updateWorkerProfile(targetUserId, {
-        policeClearanceVerified: true,
-        backgroundCheckVerified: true,
-      });
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Target user not found" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({
@@ -44,7 +54,6 @@ export async function POST(req: Request) {
       }.`,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(error, "Could not review the verification.");
   }
 }
-

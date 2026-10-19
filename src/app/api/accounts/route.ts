@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { publicUser, requireAdminUser } from "@/lib/auth";
+import { jsonError, publicUser, requireAdminUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/accounts
- *
- * Admin-only listing of every account on the platform, grouped by approval
- * state so operators can see who is waiting to be let in. Identity documents
- * and password hashes are never included — `publicUser` strips credentials and
- * the document URLs are only exposed through the verification review endpoint.
+ * GET /api/accounts — admin-only listing of every account, grouped by approval
+ * state. Identity documents and credentials are never included.
  */
 export async function GET(req: Request) {
   try {
-    requireAdminUser(req);
+    await requireAdminUser(req);
 
-    const users = db.getUsers();
+    const users = await db.getUsers();
+
     const stripDocs = (user: ReturnType<typeof publicUser>) => {
       if (!user) return user;
       const { idDocumentUrl, idDocumentBackUrl, selfieUrl, idNumber, ...safe } =
@@ -42,20 +39,6 @@ export async function GET(req: Request) {
       },
     });
   } catch (error: any) {
-    const status =
-      error.message === "UNAUTHENTICATED"
-        ? 401
-        : error.message === "FORBIDDEN"
-          ? 403
-          : 500;
-    return NextResponse.json(
-      {
-        error:
-          error.message === "FORBIDDEN"
-            ? "Administrator access required."
-            : error.message,
-      },
-      { status },
-    );
+    return jsonError(error, "Could not load accounts.");
   }
 }
