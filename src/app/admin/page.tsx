@@ -77,6 +77,7 @@ function AdminDashboardPage() {
   const [inspectUser, setInspectUser] = useState<User | null>(null);
   const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
   const [reviewActionLoading, setReviewActionLoading] = useState(false);
+  const [adminGrantLoading, setAdminGrantLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState(
     "Image is blurry and document text is illegible"
   );
@@ -176,6 +177,43 @@ function AdminDashboardPage() {
       setFeedback({ type: "error", text: e.message || "Network error" });
     } finally {
       setReviewActionLoading(false);
+    }
+  };
+
+  const handleGrantAdministrator = async (user: User) => {
+    if (
+      !window.confirm(
+        `Grant administrator access to ${user.name}? This action is recorded for review.`,
+      )
+    ) {
+      return;
+    }
+
+    setAdminGrantLoading(user.id);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/admins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: user.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          text: data.error || "Could not grant administrator access.",
+        });
+      } else {
+        setFeedback({
+          type: "success",
+          text: "Administrator access granted and recorded.",
+        });
+        await fetchData();
+      }
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error" });
+    } finally {
+      setAdminGrantLoading(null);
     }
   };
 
@@ -1315,6 +1353,7 @@ function AdminDashboardPage() {
                     <th className="px-6 py-4">Government ID Info</th>
                     <th className="px-6 py-4">Verification</th>
                     <th className="px-6 py-4">Member Since</th>
+                    <th className="px-6 py-4">Access</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-slate-300">
@@ -1363,6 +1402,20 @@ function AdminDashboardPage() {
                       </td>
                       <td className="px-6 py-4 text-slate-400">
                         {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        {u.role === "admin" ? (
+                          <span className="text-[11px] text-slate-500">Administrator</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={adminGrantLoading === u.id}
+                            onClick={() => handleGrantAdministrator(u)}
+                            className="rounded-lg border border-purple-700 bg-purple-950 px-2.5 py-1.5 text-[11px] font-semibold text-purple-200 transition hover:bg-purple-900 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {adminGrantLoading === u.id ? "Granting…" : "Grant admin"}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

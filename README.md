@@ -86,6 +86,7 @@ Security is enforced in the database, not only in application code.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Publishable / anon key |
+| `NEXT_PUBLIC_SITE_URL` | Public | Canonical production URL used for Auth redirects |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** | Server-only; bypasses RLS. Never expose. |
 | `MPESA_*` | **Secret** | Daraja credentials and callback URL |
 
@@ -124,6 +125,7 @@ The browser cannot verify a payment, submit a Till code, or lock a worker.
 ## Production checklist
 
 - [ ] Enable email confirmation in Supabase Auth
+- [ ] Set Supabase Auth Site URL to `https://herlooku.vercel.app` and add `https://herlooku.vercel.app/login` to Redirect URLs
 - [ ] Enable Supabase backups and monitor `/api/payments/mpesa/config`
 - [ ] Set the service role key and M-Pesa credentials in the host environment
 - [ ] Complete privacy, safeguarding, refund and incident-response policies

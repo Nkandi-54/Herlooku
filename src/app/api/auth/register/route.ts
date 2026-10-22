@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { mapProfile, publicUser } from "@/lib/auth";
 import { KES_PER_USD } from "@/types";
+import { getSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +142,9 @@ export async function POST(req: Request) {
       email: normalizedEmail,
       password: String(password),
       options: {
+        // This must be an allow-listed URL in Supabase Auth. In production it
+        // resolves to the canonical Vercel domain, never a localhost address.
+        emailRedirectTo: `${getSiteUrl()}/login`,
         // Read by the handle_new_user trigger to populate the profile row.
         data: {
           name: name.trim(),
