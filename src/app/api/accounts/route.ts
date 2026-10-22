@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, publicUser, requireAdminUser } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,8 @@ export async function GET(req: Request) {
         all: users.length,
         clients: users.filter((user) => user.role === "client").length,
         workers: users.filter((user) => user.role === "worker").length,
-        admins: users.filter((user) => user.role === "admin").length,
+        admins: users.filter((user) => isAdminRole(user.role)).length,
+        superAdmins: users.filter((user) => user.role === "super_admin").length,
       },
     });
   } catch (error: any) {

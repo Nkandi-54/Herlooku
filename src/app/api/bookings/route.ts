@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { Booking, EngagementType, hiringFeeUSD } from "@/types";
+import { Booking, EngagementType, hiringFeeUSD, isAdminRole } from "@/types";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
   try {
     const activeUser = await requireAuthenticatedUser(req);
 
-    if (activeUser.role === "admin") {
+    if (isAdminRole(activeUser.role)) {
       return NextResponse.json({ bookings: await db.getBookings() });
     }
     if (activeUser.role === "worker") {

@@ -6,6 +6,7 @@ import {
   requireAdminUser,
   requireAuthenticatedUser,
 } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
   try {
     const activeUser = await requireAuthenticatedUser(req);
 
-    if (activeUser.role === "admin") {
+    if (isAdminRole(activeUser.role)) {
       const allUsers = await db.getUsers();
 
       const byStatus = (status: string) =>

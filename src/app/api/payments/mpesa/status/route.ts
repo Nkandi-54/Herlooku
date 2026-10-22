@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 import { queryStkPush } from "@/lib/mpesa";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     const bookingId = new URL(req.url).searchParams.get("bookingId");
     const booking = bookingId ? await db.getBookingById(bookingId) : undefined;
 
-    if (!booking || (booking.clientId !== user.id && user.role !== "admin")) {
+    if (!booking || (booking.clientId !== user.id && !isAdminRole(user.role))) {
       return NextResponse.json(
         { error: "Booking not found." },
         { status: 404 },

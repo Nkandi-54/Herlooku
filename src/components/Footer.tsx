@@ -26,6 +26,7 @@ export const Footer: React.FC = () => {
   ];
 
   const serviceLinks: [string, string][] = [
+    [t("nav.shop"), "/shop"],
     [t("footer.services.childcare"), "/workers?service=Childcare"],
     [t("footer.services.housekeeping"), "/workers?service=Housekeeping"],
     [t("footer.services.cooking"), "/workers?service=Cooking"],

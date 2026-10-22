@@ -17,7 +17,7 @@ import {
   Search,
   Check,
 } from "lucide-react";
-import { User } from "@/types";
+import { User, isAdminRole } from "@/types";
 import { Avatar } from "./Avatar";
 import { NinjaAvatar } from "./NinjaAvatar";
 import { CurrencySelector } from "@/context/CurrencyContext";
@@ -103,18 +103,19 @@ export const Navbar: React.FC = () => {
      hide the language switcher and never localise its chrome. */
   const isAdminRoute = pathname.startsWith("/admin");
 
-  const portalHref =
-    activeUser?.role === "admin" ? "/admin"
-    : activeUser?.role === "worker" ? "/dashboard/worker"
+  const activeIsAdmin = isAdminRole(activeUser?.role);
+
+  const portalHref = !activeUser
+    ? "/dashboard/client"
+    : activeIsAdmin ? "/admin"
+    : activeUser.role === "worker" ? "/dashboard/worker"
     : "/dashboard/client";
 
-  const portalLabel =
-    activeUser?.role === "admin" ? t("portals.admin")
+  const portalLabel = activeIsAdmin ? t("portals.admin")
     : activeUser?.role === "worker" ? t("portals.worker")
     : t("portals.client");
 
-  const profileHref =
-    activeUser?.role === "admin" ? "/admin/profile"
+  const profileHref = activeIsAdmin ? "/admin/profile"
     : activeUser?.role === "worker" ? "/dashboard/worker/profile"
     : "/dashboard/client/profile";
 
@@ -123,6 +124,7 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { label: t("nav.browseHelpers"), href: "/workers", active: (p: string) => p.startsWith("/workers") },
+    { label: t("nav.shop"), href: "/shop", active: (p: string) => p.startsWith("/shop") },
     { label: t("nav.howItWorks"),  href: "/#how-it-works", active: () => false },
     { label: t("common.idVerification"), href: "/verify-id", active: (p: string) => p === "/verify-id" },
   ];

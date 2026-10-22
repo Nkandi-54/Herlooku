@@ -36,8 +36,9 @@ export default function LoginPage() {
       }
       window.dispatchEvent(new Event("auth-changed"));
       const role = data.activeUser?.role;
+      const isAdmin = role === "admin" || role === "super_admin";
       router.push(
-        role === "admin" ? "/admin" : role === "worker" ? "/dashboard/worker" : "/dashboard/client"
+        isAdmin ? "/admin" : role === "worker" ? "/dashboard/worker" : "/dashboard/client"
       );
     } catch {
       setError(tx("Network error. Please check your connection."));

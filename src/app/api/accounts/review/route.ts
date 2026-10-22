@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, publicUser, requireAdminUser } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,9 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     }
-    if (target.role === "admin") {
+    // Administrators are managed from the Accounts console, never suspended or
+    // rejected through the approval queue.
+    if (isAdminRole(target.role)) {
       return NextResponse.json(
         { error: "Administrator accounts cannot be reviewed here." },
         { status: 400 },

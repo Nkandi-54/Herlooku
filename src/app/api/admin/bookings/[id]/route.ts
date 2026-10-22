@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuthenticatedUser(req);
-    if (user.role !== "admin") {
+    if (!isAdminRole(user.role)) {
       return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
     const activeUser = await requireAuthenticatedUser(req);
     const alarms = await db.getEmergencyAlarms();
 
-    if (activeUser.role === "admin") {
+    if (isAdminRole(activeUser.role)) {
       return NextResponse.json({ alarms });
     }
 
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const activeUser = await requireAuthenticatedUser(req);
-    if (activeUser.role !== "admin") {
+    if (!isAdminRole(activeUser.role)) {
       return NextResponse.json(
         {
           error:

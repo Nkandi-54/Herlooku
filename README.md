@@ -44,21 +44,43 @@ auth signup trigger, including when email confirmation is enabled. The
 registration page waits for confirmation instead of sending an unconfirmed user
 to a dashboard.
 
-### Create the first administrator
+### The main administrator (owner)
 
 Register normally through the app. If email confirmation is enabled, confirm
 the address, then promote the account in the SQL editor:
 
 ```sql
 update public.profiles
-   set role = 'admin',
+   set role = 'super_admin',
        account_status = 'approved',
        id_verification_status = 'verified',
        approved_at = now()
  where lower(email) = lower('you@example.com');
 ```
 
-See `supabase/migrations/0002_promote_admin.sql`.
+### Promoting other administrators
+
+Any administrator can grant another account administrator access from **Admin →
+All Accounts & Roles → Grant admin**. Grants go through the audited `grant_admin`
+RPC, so every promotion is recorded in `admin_audit_log`.
+
+The **main administrator** (the site owner) is the single row referenced by
+`public.admin_governance.primary_admin_id`, created by
+`supabase/migrations/20261022070941_secure_multi_admin.sql`. It is protected at
+two levels:
+
+- **Application:** `/api/admin/accounts` and `/api/admins` refuse any change to
+  the owner's account.
+- **Database:** the `protect_profile_privileges` trigger rejects any change to
+  the owner's role, status or email from a signed-in session — including the
+owner's own — and removes the broad "admin may update every profile" policy so
+an administrator cannot demote another administrator with a crafted request.
+
+## Shop & laundry
+
+`/shop` is the web owner's storefront: coastal snacks, ladies' clothes, shoes,
+beddings, and laundry in Mombasa at **Ksh 100 per kilogram**. Orders and pickups
+are arranged by phone or email; no card or M-Pesa is collected on the page.
 
 ## Security model
 

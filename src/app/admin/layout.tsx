@@ -105,7 +105,7 @@ export default function AdminPortalLayout({
       badgeColor: "bg-slate-800 text-slate-400",
     },
     {
-      label: "Community Directory",
+      label: "All Accounts & Roles",
       href: "/admin?tab=users",
       icon: Users,
       active: false,

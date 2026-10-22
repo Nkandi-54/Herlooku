@@ -36,12 +36,18 @@ import {
   TrendingUp,
   Maximize2,
   AlertTriangle,
+  Crown,
+  UserCog,
+  ShieldPlus,
+  ShieldMinus,
 } from "lucide-react";
 import {
   User,
   Booking,
   EmergencyAlarm,
   hiringFeeUSD,
+  isAdminRole,
+  isSuperAdmin,
 } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
@@ -61,12 +67,15 @@ function AdminDashboardPage() {
   const [rejectedUsers, setRejectedUsers] = useState<User[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [emergencies, setEmergencies] = useState<EmergencyAlarm[]>([]);
+  const [accounts, setAccounts] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [emergencyFilter, setEmergencyFilter] = useState<string>("all");
+  const [roleUpdating, setRoleUpdating] = useState<string | null>(null);
 
   // Emergency Response State
   const [alarmNotes, setAlarmNotes] = useState<Record<string, string>>({});
@@ -77,7 +86,6 @@ function AdminDashboardPage() {
   const [inspectUser, setInspectUser] = useState<User | null>(null);
   const [zoomImage, setZoomImage] = useState<{ url: string; title: string } | null>(null);
   const [reviewActionLoading, setReviewActionLoading] = useState(false);
-  const [adminGrantLoading, setAdminGrantLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState(
     "Image is blurry and document text is illegible"
   );
@@ -128,6 +136,13 @@ function AdminDashboardPage() {
       if (emRes.ok) {
         const emData = await emRes.json();
         setEmergencies(emData.alarms || []);
+      }
+
+      // Every account, not just the verified workers shown above.
+      const accRes = await fetch("/api/admin/accounts");
+      if (accRes.ok) {
+        const accData = await accRes.json();
+        setAccounts(accData.accounts || []);
       }
     } catch (e) {
       console.error(e);
@@ -180,43 +195,6 @@ function AdminDashboardPage() {
     }
   };
 
-  const handleGrantAdministrator = async (user: User) => {
-    if (
-      !window.confirm(
-        `Grant administrator access to ${user.name}? This action is recorded for review.`,
-      )
-    ) {
-      return;
-    }
-
-    setAdminGrantLoading(user.id);
-    setFeedback(null);
-    try {
-      const response = await fetch("/api/admins", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId: user.id }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setFeedback({
-          type: "error",
-          text: data.error || "Could not grant administrator access.",
-        });
-      } else {
-        setFeedback({
-          type: "success",
-          text: "Administrator access granted and recorded.",
-        });
-        await fetchData();
-      }
-    } catch (error: any) {
-      setFeedback({ type: "error", text: error.message || "Network error" });
-    } finally {
-      setAdminGrantLoading(null);
-    }
-  };
-
   const handleUpdateAlarmStatus = async (alarmId: string, newStatus: string) => {
     setAlarmUpdating(alarmId);
     try {
@@ -242,6 +220,59 @@ function AdminDashboardPage() {
       console.error(e);
     } finally {
       setAlarmUpdating(null);
+    }
+  };
+
+  const handleChangeRole = async (
+    account: User,
+    role: "client" | "worker" | "admin",
+  ) => {
+    const promoting = role === "admin";
+    if (
+      promoting &&
+      !window.confirm(
+        `Grant administrator access to ${account.name} (${account.email})? They will be able to see all accounts, verify identities, and manage bookings.`,
+      )
+    ) {
+      return;
+    }
+    if (
+      !promoting &&
+      !window.confirm(
+        `Remove administrator access from ${account.name} and make them a ${role}?`,
+      )
+    ) {
+      return;
+    }
+
+    setRoleUpdating(account.id);
+    setFeedback(null);
+    try {
+      // Grants go through the audited role-change endpoint. Revocations use the
+      // same endpoint, which the database enforces per your role policy.
+      const res = await fetch("/api/admin/accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: account.id, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not update role." });
+      } else {
+        setFeedback({
+          type: "success",
+          text:
+            data.message ||
+            (promoting
+              ? "Account promoted to administrator."
+              : "Administrator access removed."),
+        });
+        await fetchData();
+      }
+    } catch (e: any) {
+      setFeedback({ type: "error", text: e.message || "Network error" });
+    } finally {
+      setRoleUpdating(null);
     }
   };
 
@@ -312,16 +343,25 @@ function AdminDashboardPage() {
         )
       : 100;
 
-  // Filtered Users List
-  const filteredUsers = allUsers.filter((u) => {
+  // Filtered Accounts List (every account on the platform)
+  const filteredAccounts = accounts.filter((u) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.location && u.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (u.idNumber && u.idNumber.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesRole = roleFilter === "all" || u.role === roleFilter;
-    return matchesSearch && matchesRole;
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.location && u.location.toLowerCase().includes(q)) ||
+      (u.phone && u.phone.toLowerCase().includes(q)) ||
+      (u.idNumber && u.idNumber.toLowerCase().includes(q));
+    const matchesRole =
+      roleFilter === "all" ||
+      (roleFilter === "admin" ? isAdminRole(u.role) : u.role === roleFilter);
+    const matchesStatus =
+      statusFilter === "all" || (u.accountStatus || "pending") === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
   });
+
+  const adminAccounts = accounts.filter((u) => isAdminRole(u.role));
+  const viewerIsSuperAdmin = isSuperAdmin(currentUser?.role);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
@@ -557,8 +597,8 @@ function AdminDashboardPage() {
           }`}
         >
           <Users size={15} />
-          <span>Users & Helpers Directory</span>
-          <span className="text-[10px] text-slate-400 font-mono">({allUsers.length})</span>
+          <span>All Accounts & Roles</span>
+          <span className="text-[10px] text-slate-400 font-mono">({accounts.length})</span>
         </button>
       </div>
 
@@ -1305,10 +1345,10 @@ function AdminDashboardPage() {
             <div>
               <h2 className="text-xl font-black text-white flex items-center gap-2">
                 <Users size={22} className="text-sky-400" />
-                <span>Platform Users & Domestic Helpers Directory</span>
+                <span>All Accounts, Roles & Permissions</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Browse verified clients, domestic workers, and system administrators.
+                Every account on the platform — clients, domestic workers and administrators — including pending and suspended accounts.
               </p>
             </div>
 
@@ -1336,12 +1376,54 @@ function AdminDashboardPage() {
                 <option value="all">All Roles</option>
                 <option value="worker">Domestic Workers</option>
                 <option value="client">Clients</option>
-                <option value="admin">Admins</option>
+                <option value="admin">Administrators</option>
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 focus:outline-none"
+              >
+                <option value="all">Any Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="suspended">Suspended</option>
+                <option value="rejected">Rejected</option>
               </select>
             </div>
           </div>
 
-          {/* Directory Table */}
+          {/* Totals */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: "All Accounts", value: accounts.length, tone: "text-white" },
+              { label: "Clients", value: accounts.filter((a) => a.role === "client").length, tone: "text-sky-300" },
+              { label: "Domestic Workers", value: accounts.filter((a) => a.role === "worker").length, tone: "text-brand-300" },
+              { label: "Administrators", value: adminAccounts.length, tone: "text-purple-300" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="bg-slate-900/90 rounded-2xl border border-slate-800 px-4 py-3"
+              >
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                  {s.label}
+                </span>
+                <span className={`text-xl font-black ${s.tone}`}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {!viewerIsSuperAdmin && (
+            <div className="p-3.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-[11px] text-purple-200 flex items-start gap-2">
+              <Lock size={14} className="text-purple-400 shrink-0 mt-0.5" />
+              <span>
+                The main administrator account is protected and cannot be changed from
+                this console. You may promote or demote other administrators.
+              </span>
+            </div>
+          )}
+
+          {/* Accounts Table */}
           <div className="bg-slate-950 rounded-3xl border border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -1352,12 +1434,20 @@ function AdminDashboardPage() {
                     <th className="px-6 py-4">Location</th>
                     <th className="px-6 py-4">Government ID Info</th>
                     <th className="px-6 py-4">Verification</th>
+                    <th className="px-6 py-4">Account</th>
                     <th className="px-6 py-4">Member Since</th>
-                    <th className="px-6 py-4">Access</th>
+                    <th className="px-6 py-4">Administrator Access</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-slate-300">
-                  {filteredUsers.map((u) => (
+                  {filteredAccounts.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-10 text-center text-slate-400">
+                        No accounts match these filters.
+                      </td>
+                    </tr>
+                  )}
+                  {filteredAccounts.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-900/40 transition-colors">
                       <td className="px-6 py-4 flex items-center gap-3">
                         <Avatar
@@ -1373,15 +1463,18 @@ function AdminDashboardPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`capitalize font-bold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                            u.role === "admin"
+                          className={`capitalize font-bold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider inline-flex items-center gap-1 ${
+                            isSuperAdmin(u.role)
+                              ? "bg-amber-950 text-amber-300 border border-amber-700"
+                              : u.role === "admin"
                               ? "bg-purple-950 text-purple-300 border border-purple-800"
                               : u.role === "worker"
                               ? "bg-sky-950 text-sky-300 border border-sky-800"
                               : "bg-slate-800 text-slate-300"
                           }`}
                         >
-                          {u.role}
+                          {isSuperAdmin(u.role) && <Crown size={11} />}
+                          {isSuperAdmin(u.role) ? "Main Admin" : u.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-300">
@@ -1400,20 +1493,56 @@ function AdminDashboardPage() {
                       <td className="px-6 py-4">
                         <VerificationBadge status={u.idVerificationStatus} size="sm" />
                       </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                            (u.accountStatus || "pending") === "approved"
+                              ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                              : (u.accountStatus || "pending") === "pending"
+                              ? "bg-amber-950 text-amber-300 border border-amber-800"
+                              : "bg-rose-950 text-rose-300 border border-rose-800"
+                          }`}
+                        >
+                          {u.accountStatus || "pending"}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-slate-400">
                         {new Date(u.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        {u.role === "admin" ? (
-                          <span className="text-[11px] text-slate-500">Administrator</span>
+                        {isSuperAdmin(u.role) ? (
+                          <span className="text-[10px] font-bold text-amber-300 inline-flex items-center gap-1.5">
+                            <Lock size={12} />
+                            Protected
+                          </span>
+                        ) : u.id === currentUser?.id ? (
+                          <span className="text-[10px] text-slate-500 italic">
+                            Your own account
+                          </span>
+                        ) : isAdminRole(u.role) ? (
+                          <button
+                            type="button"
+                            disabled={roleUpdating === u.id}
+                            onClick={() =>
+                              handleChangeRole(
+                                u,
+                                u.role === "worker" ? "worker" : "client",
+                              )
+                            }
+                            className="rounded-lg bg-rose-700 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50 inline-flex items-center gap-1.5"
+                          >
+                            <ShieldMinus size={12} />
+                            {roleUpdating === u.id ? "Saving..." : "Remove admin"}
+                          </button>
                         ) : (
                           <button
                             type="button"
-                            disabled={adminGrantLoading === u.id}
-                            onClick={() => handleGrantAdministrator(u)}
-                            className="rounded-lg border border-purple-700 bg-purple-950 px-2.5 py-1.5 text-[11px] font-semibold text-purple-200 transition hover:bg-purple-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={roleUpdating === u.id}
+                            onClick={() => handleChangeRole(u, "admin")}
+                            className="rounded-lg bg-purple-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50 inline-flex items-center gap-1.5"
                           >
-                            {adminGrantLoading === u.id ? "Granting…" : "Grant admin"}
+                            <ShieldPlus size={12} />
+                            {roleUpdating === u.id ? "Granting…" : "Grant admin"}
                           </button>
                         )}
                       </td>

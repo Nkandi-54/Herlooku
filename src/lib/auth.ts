@@ -1,7 +1,7 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { User } from "@/types";
+import { User, isAdminRole } from "@/types";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 /**
@@ -12,7 +12,7 @@ type ProfileRow = {
   id: string;
   email: string;
   name: string;
-  role: "client" | "worker" | "admin";
+  role: "client" | "worker" | "admin" | "super_admin";
   avatar: string | null;
   phone: string | null;
   location: string | null;
@@ -116,7 +116,7 @@ export async function getAuthenticatedUser(
     if (error || !profile) return null;
 
     // A suspended account loses access immediately, even mid-session.
-    if (profile.role !== "admin" && profile.account_status === "suspended") {
+    if (!isAdminRole(profile.role) && profile.account_status === "suspended") {
       return null;
     }
 
@@ -135,14 +135,14 @@ export async function requireAuthenticatedUser(req: Request): Promise<User> {
 /** Admin-only guard. Throws "FORBIDDEN" for authenticated non-admins. */
 export async function requireAdminUser(req: Request): Promise<User> {
   const user = await requireAuthenticatedUser(req);
-  if (user.role !== "admin") throw new Error("FORBIDDEN");
+  if (!isAdminRole(user.role)) throw new Error("FORBIDDEN");
   return user;
 }
 
 /** A client or worker must be approved by an administrator before acting. */
 export async function requireApprovedUser(req: Request): Promise<User> {
   const user = await requireAuthenticatedUser(req);
-  if (user.role !== "admin" && user.accountStatus !== "approved") {
+  if (!isAdminRole(user.role) && user.accountStatus !== "approved") {
     throw new Error("ACCOUNT_NOT_APPROVED");
   }
   return user;

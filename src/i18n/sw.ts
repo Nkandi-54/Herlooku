@@ -645,6 +645,7 @@ const sw: Translations = {
 
   nav: {
     browseHelpers: "Tafuta Wasaidizi",
+    shop: "Duka & Kufulia",
     howItWorks: "Inavyofanya Kazi",
     viewProfile: "Ona Wasifu",
     browseHelpersAria: "Tafuta wasaidizi",

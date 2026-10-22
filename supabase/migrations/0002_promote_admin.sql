@@ -1,6 +1,8 @@
 -- ============================================================================
 -- Promote an existing account to administrator
 -- ============================================================================
+-- NOTE: For the SITE OWNER, use role = 'super_admin' as documented in
+-- 0008_super_admin_and_accounts.sql. 'admin' is for promoted administrators.
 -- Run this AFTER the person has signed up through the normal registration form.
 -- Replace the email below with the real administrator's email, then run.
 --

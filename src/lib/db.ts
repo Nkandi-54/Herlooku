@@ -10,6 +10,7 @@ import {
   EmergencyAlarm,
   EmergencyAlarmType,
   MpesaPayment,
+  UserRole,
   hiringFeeUSD,
 } from "@/types";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -684,6 +685,55 @@ class Database {
         approved_by: decision === "approve" ? adminId : null,
         account_status_reason: decision === "approve" ? null : (reason ?? null),
       })
+      .eq("id", userId)
+      .select("*")
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapProfile(data as ProfileRow);
+  }
+
+  // ── Administrator console: every account ─────────────────────────────────
+
+  /**
+   * Every account on the platform — clients, workers and administrators alike.
+   *
+   * Uses the service-role client so the list stays complete even when a profile
+   * is not covered by a row policy (pending or suspended rows included). Callers
+   * MUST verify the caller is an administrator first and MUST strip identity
+   * documents before returning the rows to a browser.
+   */
+  async getAllAccountsAsService(): Promise<User[]> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => mapProfile(row as ProfileRow));
+  }
+
+  /**
+   * Change an account's role (promote to / demote from administrator).
+   *
+   * Uses the service role because the privilege-guard trigger intentionally
+   * rejects role changes from a browser session. The caller is responsible for
+   * authorising the change; see /api/admin/accounts.
+   */
+  async setUserRoleAsService(userId: string, role: UserRole): Promise<User | null> {
+    const sb = createAdminClient();
+    const patch: Record<string, unknown> = { role };
+
+    // Promoting to administrator implies a usable, verified admin account.
+    if (role === "admin" || role === "super_admin") {
+      patch.account_status = "approved";
+      patch.account_status_reason = null;
+      patch.approved_at = new Date().toISOString();
+    }
+
+    const { data, error } = await sb
+      .from("profiles")
+      .update(patch)
       .eq("id", userId)
       .select("*")
       .maybeSingle();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getAuthenticatedUser, publicWorkerUser } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET(
 
   const viewer = await getAuthenticatedUser(req);
   const isOwner = viewer?.id === id;
-  const isAdmin = viewer?.role === "admin";
+  const isAdmin = isAdminRole(viewer?.role);
 
   if (!isPubliclyVisible(profile) && !isOwner && !isAdmin) {
     // Indistinguishable from a non-existent worker so unapproved applicants

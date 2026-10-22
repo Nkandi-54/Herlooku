@@ -1,4 +1,4 @@
-export type UserRole = "client" | "worker" | "admin";
+export type UserRole = "client" | "worker" | "admin" | "super_admin";
 
 export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected";
 
@@ -91,6 +91,20 @@ export interface User {
   lastLoginAt?: string;
   /** Stored only server-side. Never return this field from an API response. */
   password?: string;
+}
+
+/** Any administrator, whether the main (super) administrator or a promoted one. */
+export function isAdminRole(role: UserRole | undefined | null): boolean {
+  return role === "admin" || role === "super_admin";
+}
+
+/**
+ * The main administrator account. It is the only account that may promote or
+ * demote other administrators, and it can never be demoted, suspended, or have
+ * its role changed by anyone else.
+ */
+export function isSuperAdmin(role: UserRole | undefined | null): boolean {
+  return role === "super_admin";
 }
 
 export type EngagementType = "daily" | "monthly";

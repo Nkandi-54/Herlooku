@@ -43,6 +43,7 @@ const en = {
   /* ── Navbar ──────────────────────────────────── */
   nav: {
     browseHelpers: "Browse Helpers",
+    shop: "Shop & Laundry",
     howItWorks: "How It Works",
     viewProfile: "View Profile",
     browseHelpersAria: "Browse helpers",
