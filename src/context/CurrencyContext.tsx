@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { KES_PER_USD } from "@/types";
 
 type Currency = "KES" | "USD";
 
@@ -13,7 +14,7 @@ interface CurrencyContextType {
   convertToUsd: (amountInCurrentCurrency: number) => number;
 }
 
-const EXCHANGE_RATE_USD_TO_KES = 130;
+const EXCHANGE_RATE_USD_TO_KES = KES_PER_USD;
 
 const CurrencyContext = createContext<CurrencyContextType>({
   currency: "KES",

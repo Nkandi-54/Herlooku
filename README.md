@@ -39,9 +39,15 @@ That creates these tables:
 Two storage buckets are created: `identity-documents` (private — ID scans and
 selfies) and `avatars` (public).
 
+Worker profiles and the details entered during registration are saved by the
+auth signup trigger, including when email confirmation is enabled. The
+registration page waits for confirmation instead of sending an unconfirmed user
+to a dashboard.
+
 ### Create the first administrator
 
-Register normally through the app, then promote the account in the SQL editor:
+Register normally through the app. If email confirmation is enabled, confirm
+the address, then promote the account in the SQL editor:
 
 ```sql
 update public.profiles

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { Booking, CONSTANT_HIRING_FEE_USD } from "@/types";
+import { Booking, EngagementType, hiringFeeUSD } from "@/types";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -104,6 +104,7 @@ export async function POST(req: Request) {
       clientAddress,
       specialInstructions,
       serviceRequirements,
+      engagementType,
     } = body;
 
     if (!workerId || !startDate || !endDate || !clientAddress) {
@@ -173,6 +174,32 @@ export async function POST(req: Request) {
       );
     }
 
+    const availableEngagements =
+      workerProfile.engagementTypes.length > 0
+        ? workerProfile.engagementTypes
+        : (["daily"] as EngagementType[]);
+    const selectedEngagement: EngagementType =
+      engagementType === undefined
+        ? availableEngagements.includes("daily")
+          ? "daily"
+          : availableEngagements[0]
+        : engagementType;
+    if (
+      selectedEngagement !== "daily" &&
+      selectedEngagement !== "monthly"
+    ) {
+      return NextResponse.json(
+        { error: "Choose a valid engagement type." },
+        { status: 400 },
+      );
+    }
+    if (!availableEngagements.includes(selectedEngagement)) {
+      return NextResponse.json(
+        { error: "This worker does not offer the selected engagement type." },
+        { status: 400 },
+      );
+    }
+
     const isAvailable = await db.isWorkerExclusivelyAvailable(
       workerId,
       startDate,
@@ -195,9 +222,21 @@ export async function POST(req: Request) {
       Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1,
     );
 
-    const platformBookingFee = CONSTANT_HIRING_FEE_USD;
-    const workerExpectedDailySalary = workerProfile.expectedDailySalary || 8;
-    const totalAmount = platformBookingFee;
+    const platformBookingFee = hiringFeeUSD(selectedEngagement);
+    const workerExpectedDailySalary =
+      selectedEngagement === "daily"
+        ? workerProfile.expectedDailySalary || 8
+        : 0;
+    const workerExpectedMonthlySalary =
+      selectedEngagement === "monthly"
+        ? workerProfile.expectedMonthlySalary ||
+          Math.round((workerProfile.expectedDailySalary || 8) * 26)
+        : 0;
+    const totalAmount =
+      platformBookingFee +
+      (selectedEngagement === "daily"
+        ? workerExpectedDailySalary * totalDays
+        : 0);
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const bookingRef = `HLK-${new Date().getFullYear()}-${randomSuffix}`;
@@ -212,8 +251,10 @@ export async function POST(req: Request) {
       startDate,
       endDate,
       totalDays,
+      engagementType: selectedEngagement,
       platformBookingFee,
       workerExpectedDailySalary,
+      workerExpectedMonthlySalary,
       totalAmount,
       status: "pending_payment",
       escrowStatus: "holding",
@@ -228,7 +269,9 @@ export async function POST(req: Request) {
       success: true,
       booking: created,
       message:
-        "Booking initialized. Pay the hire fee to lock the worker exclusively.",
+        selectedEngagement === "daily"
+          ? "Booking initialized. Pay the hiring fee and booked daily wages to lock the worker."
+          : "Booking initialized. Pay the hiring fee to lock the worker exclusively.",
     });
   } catch (error: any) {
     return jsonError(error, "Could not create the booking.");

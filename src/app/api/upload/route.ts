@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     // Folder is always the user's uid so storage policies can scope access.
     const path = `${user.id}/${safeBase}-${randomUUID().slice(0, 8)}.${ext}`;
 
-    const supabase = createServerSupabase();
+    const supabase = await createServerSupabase();
     const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(path, bytes, {

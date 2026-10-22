@@ -20,7 +20,13 @@ import {
   ShieldAlert,
   Coins,
 } from "lucide-react";
-import { WorkerProfile, User, Review, CONSTANT_HIRING_FEE_USD } from "@/types";
+import {
+  WorkerProfile,
+  User,
+  Review,
+  EngagementType,
+  hiringFeeUSD,
+} from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -49,6 +55,8 @@ export default function WorkerDetailPage() {
   const [address, setAddress] = useState("");
   const [instructions, setInstructions] = useState("");
   const [bookingError, setBookingError] = useState("");
+  const [selectedEngagementType, setSelectedEngagementType] =
+    useState<EngagementType>("daily");
 
   useEffect(() => {
     // Fetch active user
@@ -71,6 +79,9 @@ export default function WorkerDetailPage() {
         .then((data) => {
           if (data.profile) {
             setWorkerData(data);
+            setSelectedEngagementType(
+              data.profile.engagementTypes?.includes("daily") ? "daily" : "monthly",
+            );
             if (data.profile.services?.length > 0) {
               setSelectedService(data.profile.services[0]);
             }
@@ -109,11 +120,13 @@ export default function WorkerDetailPage() {
 
   const { profile, reviews, bookedDateRanges } = workerData;
 
-  // WEB OWNER BOOKING FEE MODEL:
-  // CONSTANT PLATFORM HIRING FEE MODEL:
-  const platformBookingFee = CONSTANT_HIRING_FEE_USD; // Constant Ksh 3,000 for all workers
+  const availableEngagements: EngagementType[] =
+    profile.engagementTypes?.length > 0 ? profile.engagementTypes : ["daily"];
+  const platformBookingFee = hiringFeeUSD(selectedEngagementType);
   const workerExpectedDailySalary = profile.expectedDailySalary || 8;
-  const totalAmount = platformBookingFee; // Website only charges the constant hiring fee
+  const workerExpectedMonthlySalary =
+    profile.expectedMonthlySalary ||
+    Math.round(workerExpectedDailySalary * 26);
 
   let totalDays = 0;
   if (startDate && endDate) {
@@ -124,6 +137,11 @@ export default function WorkerDetailPage() {
       totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     }
   }
+  const workerSalaryDueAtBooking =
+    selectedEngagementType === "daily"
+      ? workerExpectedDailySalary * totalDays
+      : 0;
+  const totalAmount = platformBookingFee + workerSalaryDueAtBooking;
 
   // Check if selected dates conflict with existing exclusive bookings
   const hasDateConflict = () => {
@@ -185,6 +203,7 @@ export default function WorkerDetailPage() {
       endDate,
       clientAddress: address,
       specialInstructions: instructions,
+      engagementType: selectedEngagementType,
     });
 
     router.push(`/booking/${workerId}?${query.toString()}`);
@@ -244,19 +263,13 @@ export default function WorkerDetailPage() {
                 </div>
                 <div className="text-[11px] text-slate-500">{tx("to lock helper exclusively")}</div>
                 <div className="text-[11px] text-sky-900 font-bold mt-1 pt-1 border-t border-sky-200">
-                  {(profile.engagementTypes || []).includes("daily") && (
-                    <span className="block">{formatPrice(workerExpectedDailySalary)}{tx(" / day expected")}</span>
+                  {availableEngagements.includes("daily") && (
+                    <span className="block">{tx("Daily hiring fee")}: {formatPrice(hiringFeeUSD("daily"))}</span>
                   )}
-                  {(profile.engagementTypes || []).includes("monthly") && (
+                  {availableEngagements.includes("monthly") && (
                     <span className="block">
-                      {formatPrice(
-                        profile.expectedMonthlySalary ||
-                          Math.round(workerExpectedDailySalary * 26)
-                      )}{tx(" / month expected")}
+                      {tx("Monthly hiring fee")}: {formatPrice(hiringFeeUSD("monthly"))}
                     </span>
-                  )}
-                  {(profile.engagementTypes || []).length === 0 && (
-                    <span className="block">{formatPrice(workerExpectedDailySalary)}{tx(" / day expected")}</span>
                   )}
                 </div>
               </div>
@@ -450,7 +463,7 @@ export default function WorkerDetailPage() {
               </div>
               <h3 className="text-xl font-black text-slate-900">{t("copy:Book {name}", { name: profile.user.name })}</h3>
               <p className="text-xs text-slate-500 mt-1">
-                {t("copy:Pay the exclusive hire fee upfront to lock {name} for your home.", { name: profile.user.name })}
+                {t("copy:Pay Herlooku upfront to lock {name} for your home.", { name: profile.user.name })}
               </p>
             </div>
 
@@ -569,6 +582,39 @@ export default function WorkerDetailPage() {
               />
             </div>
 
+            {availableEngagements.length > 1 && (
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-bold text-slate-800">
+                  {tx("Choose engagement type")}
+                </legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableEngagements.map((engagement) => (
+                    <label
+                      key={engagement}
+                      className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 text-xs ${
+                        selectedEngagementType === engagement
+                          ? "border-brand-500 bg-brand-50 text-brand-800"
+                          : "border-slate-200 bg-white text-slate-600"
+                      }`}
+                    >
+                      <span>
+                        {engagement === "daily" ? tx("Daily hire") : tx("Monthly hire")}
+                        {" · "}
+                        {formatPrice(hiringFeeUSD(engagement))}
+                      </span>
+                      <input
+                        type="radio"
+                        name="engagementType"
+                        value={engagement}
+                        checked={selectedEngagementType === engagement}
+                        onChange={() => setSelectedEngagementType(engagement)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
             {/* Pricing Breakdown: Web Owner Fee & Expected Daily Pay */}
             {!isConflict && (
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2 text-xs">
@@ -576,16 +622,34 @@ export default function WorkerDetailPage() {
                   <span>{tx("Platform Hiring Fee")}</span>
                   <span className="font-semibold text-slate-900">{formatPrice(platformBookingFee)}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>{tx("Worker Stated Daily Pay")}</span>
-                  <span className="font-semibold text-sky-800">{formatPrice(workerExpectedDailySalary)} / day</span>
-                </div>
+                {selectedEngagementType === "daily" ? (
+                  <>
+                    <div className="flex justify-between text-slate-600">
+                      <span>{tx("Daily worker pay held by Herlooku")}</span>
+                      <span className="font-semibold text-sky-800">
+                        {formatPrice(workerExpectedDailySalary)} × {totalDays} {tx("days")}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-sky-800">
+                      {tx("Herlooku pays the worker after the task is completed.")}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between text-slate-600">
+                    <span>{tx("Expected monthly pay paid directly to worker")}</span>
+                    <span className="font-semibold text-sky-800">
+                      {formatPrice(workerExpectedMonthlySalary)} / {tx("month")}
+                    </span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-sm text-slate-900">
                   <span>{tx("Due Online Now")}</span>
                   <span className="text-brand-700 font-black">{formatPrice(totalAmount)}</span>
                 </div>
                 <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-[10px] text-amber-900 leading-tight">
-                  {tx("Fee paid online is the constant platform hiring fee of Ksh 3,000 to exclusively lock this worker. Herlooku Task Ninja does NOT collect worker salary. Pay the helper’s agreed salary directly to them at the end of each work day (daily hires) or month (monthly hires).")}
+                  {selectedEngagementType === "daily"
+                    ? tx("Pay the daily hiring fee and the booked daily wages to Herlooku at booking. Herlooku pays the worker after the task is completed.")
+                    : tx("Pay the monthly hiring fee to Herlooku at booking. Pay the worker’s monthly salary directly to them.")}
                 </div>
               </div>
             )}
@@ -619,7 +683,7 @@ export default function WorkerDetailPage() {
               }`}
             >
               <CreditCard size={18} />
-              <span>{t("copy:Pay {amount} Booking Fee to Lock", { amount: formatPrice(totalAmount) })}</span>
+              <span>{t("copy:Pay {amount} to Herlooku", { amount: formatPrice(totalAmount) })}</span>
             </button>
 
             <div className="text-center text-[11px] text-slate-400 space-y-1.5">

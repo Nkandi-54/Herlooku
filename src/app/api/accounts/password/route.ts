@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = createServerSupabase();
+    const supabase = await createServerSupabase();
 
     // Re-authenticate first: proves the caller knows the current password.
     const { error: reauthError } = await supabase.auth.signInWithPassword({

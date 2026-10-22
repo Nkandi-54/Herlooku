@@ -53,3 +53,6 @@ ninja-check.png
 # Supabase CLI local state
 supabase/.temp/
 .supabase/
+
+.vercel
+.env*

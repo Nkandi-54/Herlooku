@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = createServerSupabase();
+    const supabase = await createServerSupabase();
     const { data, error } = await supabase
       .from("reviews")
       .insert({

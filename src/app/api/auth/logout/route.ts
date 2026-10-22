@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 /** POST /api/auth/logout — revokes the Supabase session and clears its cookies. */
 export async function POST() {
   try {
-    const supabase = createServerSupabase();
+    const supabase = await createServerSupabase();
     await supabase.auth.signOut();
   } catch {
     /* Signing out is always treated as success. */

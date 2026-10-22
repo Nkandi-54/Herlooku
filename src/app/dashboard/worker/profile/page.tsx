@@ -185,7 +185,7 @@ export default function WorkerProfilePage() {
       <div>
         <h1 className="text-2xl font-black text-slate-900">{tx("Edit Worker Profile & Expected Pay")}</h1>
         <p className="text-xs text-slate-500 mt-1">
-          {tx("Update your public profile, service specialties, and your expected daily pay to be paid directly by the client.")}
+          {tx("Update your public profile, service specialties, and expected pay for your selected engagement types.")}
         </p>
       </div>
 
@@ -256,18 +256,18 @@ export default function WorkerProfilePage() {
           <div className="flex items-center justify-between">
             <label className="text-xs font-black text-sky-950 flex items-center gap-1.5">
               <Coins size={16} className="text-sky-700" />
-              <span>{tx("Work Availability & Expected Pay (Paid directly by Client)")}</span>
+              <span>{tx("Work Availability & Expected Pay")}</span>
             </label>
             <span className="text-[11px] text-sky-800 font-semibold">
-              {tx("Paid to you directly by the household")}
+              {tx("Daily pay is handled by Herlooku; monthly pay is paid directly by your employer.")}
             </span>
           </div>
 
           <div className="p-3 bg-white/80 rounded-xl border border-sky-200 text-xs text-sky-950 space-y-1">
             <span className="font-bold block">{tx("Your Pay Guarantee:")}</span>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              <strong>{tx("Herlooku Task Ninja does not take commissions or deductions from your pay.")}</strong>{" "}
-              {tx("State whether you are available for daily (one or two day) jobs, monthly work, or both — and your expected pay for each. You will receive it in full directly from the household.")}
+              <strong>{tx("Your stated salary is not reduced by a worker commission.")}</strong>{" "}
+              {tx("Select daily jobs, monthly work, or both and set your expected pay. Herlooku collects daily wages and pays you after task completion; monthly wages come directly from your employer.")}
             </p>
           </div>
 
@@ -322,7 +322,7 @@ export default function WorkerProfilePage() {
                   {t("copy:Ksh {salary} / day ≈ ${usd} USD / day", { salary: dailySalaryKsh.toLocaleString(), usd: calculatedUsd })}
                 </span>
                 <p className="text-[10px] text-slate-500 mt-0.5">
-                  {t("copy:Exchange rate: 1 USD = {rate} Ksh. Paid by household at end of each day.", { rate: exchangeRate })}
+                  {t("copy:Exchange rate: 1 USD = {rate} Ksh. Herlooku pays you after task completion.", { rate: exchangeRate })}
                 </p>
               </div>
             </div>

@@ -142,7 +142,7 @@ export default function ClientDashboardLayout({
               <span>{tx("Direct Till Verification Guarantee")}</span>
             </span>
             <p className="text-slate-600 leading-relaxed">
-              {tx("Your one-time hire fee of Ksh 3,000 is verified by M-Pesa before your helper arrives and commences duties.")}
+              {tx("Daily hires: Ksh 1,000 hiring fee plus wages paid to Herlooku, which pays the worker after task completion. Monthly hires: Ksh 3,000 hiring fee; employers pay wages directly.")}
             </p>
           </div>
         </div>

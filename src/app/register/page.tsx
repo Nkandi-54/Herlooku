@@ -33,6 +33,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -42,7 +43,7 @@ export default function RegisterPage() {
     setError("");
     if (!form.name.trim()) return setError(tx("Please enter your full name."));
     if (!form.email.trim()) return setError(tx("Please enter your email address."));
-    if (form.password.length < 6) return setError(tx("Password must be at least 6 characters."));
+    if (form.password.length < 8) return setError(tx("Choose a password with at least 8 characters."));
     if (form.password !== form.confirmPassword) return setError(tx("Passwords do not match."));
     setStep(2);
   };
@@ -74,6 +75,15 @@ export default function RegisterPage() {
         setError(t(`copy:${data.error || "Registration failed. Please try again."}`));
         return;
       }
+      if (data.requiresEmailConfirmation) {
+        setConfirmationMessage(
+          tx(
+            "Check your inbox to confirm your email address. An administrator will review your account after that.",
+          ),
+        );
+        setSuccess(true);
+        return;
+      }
       setSuccess(true);
       window.dispatchEvent(new Event("auth-changed"));
       setTimeout(() => {
@@ -97,12 +107,22 @@ export default function RegisterPage() {
           </div>
           <h2 className="text-2xl font-black text-white">{tx("Account Created!")}</h2>
           <p className="text-slate-400 text-sm">
-            {t("copy:Welcome to Herlooku, {name}! Redirecting to your dashboard…", { name: form.name })}
+            {confirmationMessage ||
+              t("copy:Welcome to Herlooku, {name}! Redirecting to your dashboard…", { name: form.name })}
           </p>
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-600 mt-2">
-            <ShieldCheck size={12} />
-            <span>{tx("Please complete ID verification to unlock all features")}</span>
-          </div>
+          {confirmationMessage ? (
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white hover:bg-brand-500"
+            >
+              {tx("Continue to sign in")} <ArrowRight size={16} />
+            </Link>
+          ) : (
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-600 mt-2">
+              <ShieldCheck size={12} />
+              <span>{tx("Please complete ID verification to unlock all features")}</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -328,11 +348,11 @@ export default function RegisterPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                      {tx("Expected Daily Pay")} <span className="normal-case font-normal text-slate-500">{tx("(Ksh, paid by client at end of day)")}</span>
+                      {tx("Expected Daily Pay")} <span className="normal-case font-normal text-slate-500">{tx("(Ksh, paid by Herlooku after task completion)")}</span>
                     </label>
                     <input
                       type="number"
-                      min={0}
+                      min={1}
                       step={50}
                       value={form.expectedDailySalary}
                       onChange={set("expectedDailySalary")}
@@ -340,7 +360,7 @@ export default function RegisterPage() {
                       className="w-full px-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
                     />
                     <p className="text-[10px] text-slate-600 leading-relaxed">
-                      This is your direct pay settled offline with the client. Herlooku only charges the Ksh 3,000 platform booking fee.
+                      For daily hires, clients pay Herlooku and Herlooku pays you after the task is completed. Monthly employers pay workers directly.
                     </p>
                   </div>
                 </>

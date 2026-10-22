@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import {
   ShieldCheck,
   Lock,
   CheckCircle2,
   HeartHandshake,
-  ArrowRight,
   Sparkles,
   Mail,
   MapPin,
@@ -18,8 +17,6 @@ import { useLanguage } from "@/i18n/LanguageContext";
 
 export const Footer: React.FC = () => {
   const { t } = useLanguage();
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
 
   const trustItems = [
     { icon: ShieldCheck, label: t("trust.twoSidedId") },
@@ -45,14 +42,6 @@ export const Footer: React.FC = () => {
     // Admin console is English-only by policy, so this key is never Swahili.
     [t("footer.platform.adminConsole"), "/admin"],
   ];
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribed(true);
-    setEmail("");
-    setTimeout(() => setSubscribed(false), 3500);
-  };
 
   return (
     <footer className="relative mt-20 bg-ink text-slate-300 overflow-hidden">
@@ -110,42 +99,18 @@ export const Footer: React.FC = () => {
               {t("footer.blurb")}
             </p>
 
-            {/* Newsletter */}
+            {/* Trust & Safety contact */}
             <div className="space-y-2.5">
               <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 flex items-center gap-1.5">
                 <Sparkles size={13} className="text-brand-400" />
                 {t("footer.trustUpdates")}
               </span>
-              {subscribed ? (
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
-                  <CheckCircle2 size={15} />
-                  <span>{t("footer.subscribedMessage")}</span>
-                </div>
-              ) : (
-                <form
-                  onSubmit={handleSubscribe}
-                  className="flex gap-2 max-w-md"
-                >
-                  <div className="relative flex-1">
-                    <Mail
-                      size={15}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
-                    />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={t("footer.subscribePlaceholder")}
-                      className="w-full rounded-xl bg-white/[0.05] border border-white/12 pl-10 pr-3 py-3 text-xs font-semibold text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-500/50"
-                    />
-                  </div>
-                  <button type="submit" className="btn-primary btn-sm shrink-0">
-                    <span>{t("common.subscribe")}</span>
-                    <ArrowRight size={14} />
-                  </button>
-                </form>
-              )}
+              <a
+                href="mailto:trust@herlooku.com?subject=Trust%20and%20Safety%20updates"
+                className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs font-bold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {t("footer.getInTouch")}
+              </a>
             </div>
           </div>
 
@@ -199,7 +164,12 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail size={14} className="text-brand-400 shrink-0" />
-                <span>trust@herlooku.com</span>
+                <a
+                  href="mailto:trust@herlooku.com"
+                  className="hover:text-brand-300 transition-colors"
+                >
+                  trust@herlooku.com
+                </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone size={14} className="text-brand-400 shrink-0" />

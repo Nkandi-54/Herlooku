@@ -10,8 +10,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
  * Security applies. This is the client to use in Server Components, Route
  * Handlers and Server Actions.
  */
-export function createServerSupabase() {
-  const cookieStore = cookies();
+export async function createServerSupabase() {
+  const cookieStore = await cookies();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

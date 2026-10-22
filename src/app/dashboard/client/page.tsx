@@ -21,7 +21,7 @@ import {
   Radio,
   AlertTriangle,
 } from "lucide-react";
-import { User, Booking, WorkerProfile, CONSTANT_HIRING_FEE_USD } from "@/types";
+import { User, Booking, WorkerProfile, hiringFeeUSD } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -336,17 +336,21 @@ export default function ClientDashboardPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">{tx("Platform Placement Fee:")}</span>
-                      <span className="font-bold text-brand-700">{formatPrice(bkg.platformBookingFee || bkg.totalAmount || CONSTANT_HIRING_FEE_USD)}</span>
+                      <span className="font-bold text-brand-700">{formatPrice(bkg.platformBookingFee || hiringFeeUSD(bkg.engagementType))}</span>
                     </div>
                   </div>
 
                   <div className="p-3 bg-amber-100/70 rounded-xl text-[11px] text-amber-900 space-y-1">
                     <p className="font-bold">{tx("Instructions to dispatch helper:")}</p>
-                    <p>{t("copy:Pay fixed Ksh 3,000 to M-PESA Till {till} (Herlooku Placements Ltd) and submit your M-PESA code.", { till: "8849201" })}</p>
+                    <p>
+                      {bkg.engagementType === "daily"
+                        ? "Daily wages are paid to Herlooku at booking and paid out to the worker after task completion."
+                        : "Pay the monthly worker directly; the M-Pesa hiring fee is paid to Herlooku."}
+                    </p>
                   </div>
 
                   <Link
-                    href={`/booking/${bkg.workerId}?startDate=${bkg.startDate}&endDate=${bkg.endDate}&clientAddress=${encodeURIComponent(bkg.clientAddress || "")}&serviceName=${encodeURIComponent(bkg.serviceName || "")}`}
+                    href={`/booking/${bkg.workerId}?startDate=${bkg.startDate}&endDate=${bkg.endDate}&clientAddress=${encodeURIComponent(bkg.clientAddress || "")}&serviceName=${encodeURIComponent(bkg.serviceName || "")}&engagementType=${bkg.engagementType}`}
                     className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
                   >
                     <span>{tx("Complete Till Payment / Verify Code →")}</span>
@@ -377,7 +381,7 @@ export default function ClientDashboardPage() {
             </div>
             <h3 className="text-sm font-bold text-slate-800">{tx("No active hires right now")}</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Browse vetted househelps and pay the one-time booking fee directly to the web owner to exclusively reserve them.
+              Browse vetted househelps. Daily bookings include wages paid to Herlooku for payout after task completion; monthly wages are paid directly to workers.
             </p>
             <Link
               href="/workers"
@@ -433,7 +437,7 @@ export default function ClientDashboardPage() {
                     <div>
                       <span className="text-slate-400 block font-medium">{tx("Platform Hiring Fee")}</span>
                       <span className="font-bold text-brand-700">
-                        {formatPrice(bkg.platformBookingFee || bkg.totalAmount || CONSTANT_HIRING_FEE_USD)}
+                        {formatPrice(bkg.platformBookingFee || hiringFeeUSD(bkg.engagementType))}
                       </span>
                       <span className="text-[10px] text-emerald-700 font-semibold block">
                         Paid to Web Owner
@@ -445,14 +449,20 @@ export default function ClientDashboardPage() {
                   <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-sky-900">
-                        Worker Expected Pay:
+                        {bkg.engagementType === "daily"
+                          ? "Worker Expected Pay:"
+                          : "Worker Expected Monthly Pay:"}
                       </span>
                       <span className="text-xs font-black text-sky-800">
-                        {formatPrice(bkg.workerExpectedDailySalary || worker?.expectedDailySalary || 8)} / day
+                        {bkg.engagementType === "daily"
+                          ? `${formatPrice(bkg.workerExpectedDailySalary || worker?.expectedDailySalary || 8)} / day`
+                          : `${formatPrice(bkg.workerExpectedMonthlySalary || worker?.expectedMonthlySalary || 0)} / month`}
                       </span>
                     </div>
                     <p className="text-[10px] text-sky-700 leading-tight">
-                      Herlooku Task Ninja does not collect or handle worker salary. Please pay the stated pay directly to the worker at the end of each work day.
+                      {bkg.engagementType === "daily"
+                        ? "Daily wages are collected by Herlooku and paid to the worker after the task is completed."
+                        : "Pay the worker’s monthly salary directly to them."}
                     </p>
                   </div>
 

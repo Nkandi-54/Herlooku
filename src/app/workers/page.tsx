@@ -19,7 +19,12 @@ import {
   ArrowUpDown,
   X,
 } from "lucide-react";
-import { WorkerProfile, User, CONSTANT_HIRING_FEE_USD } from "@/types";
+import {
+  WorkerProfile,
+  User,
+  DAILY_HIRING_FEE_USD,
+  MONTHLY_HIRING_FEE_USD,
+} from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -169,7 +174,7 @@ function WorkersDirectoryContent() {
             </span>
           </h1>
           <p className="text-slate-300 text-sm leading-relaxed">
-            {tx("Every worker has submitted government ID and cleared background checks. Pay the one-time exclusive hire fee upfront to lock your helper’s dates.")}
+            {tx("Every worker has submitted government ID and cleared background checks. Daily hires cost Ksh 1,000 plus wages paid through Herlooku; monthly hires cost Ksh 3,000 and wages are paid directly by employers.")}
           </p>
         </div>
 
@@ -189,7 +194,9 @@ function WorkersDirectoryContent() {
               {tx("Hire fee")}
             </span>
             <span className="text-lg font-black text-white">
-              {formatPrice(CONSTANT_HIRING_FEE_USD)}
+              {tx("Daily")}: {formatPrice(DAILY_HIRING_FEE_USD)}
+              {" · "}
+              {tx("Monthly")}: {formatPrice(MONTHLY_HIRING_FEE_USD)}
             </span>
           </div>
         </div>
@@ -288,7 +295,10 @@ function WorkersDirectoryContent() {
                 <span>{formatPrice(25)}+ /day</span>
               </div>
               <p className="text-[10px] text-slate-400">
-                {t("copy:Hiring fee is constant {fee} for all helpers", { fee: formatPrice(CONSTANT_HIRING_FEE_USD) })}
+                {t("copy:Daily hire fee {dailyFee}; monthly hire fee {monthlyFee}", {
+                  dailyFee: formatPrice(DAILY_HIRING_FEE_USD),
+                  monthlyFee: formatPrice(MONTHLY_HIRING_FEE_USD),
+                })}
               </p>
             </div>
 
@@ -495,17 +505,28 @@ function WorkersDirectoryContent() {
                     </div>
                   </div>
 
-                  {/* Card Bottom CTA with Constant Hiring Fee & Daily Pay */}
+                  {/* Card Bottom CTA with engagement-specific fees and pay */}
                   <div className="bg-slate-50/80 px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
                     <div>
                       <span className="text-[10px] text-slate-400 font-semibold block uppercase">
-                        {tx("Hiring Fee")}
+                        {tx("Hiring fees")}
                       </span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-base font-black text-slate-900">
-                          {formatPrice(CONSTANT_HIRING_FEE_USD)}
-                        </span>
-                        <span className="text-[10px] text-slate-500">{tx("one-time")}</span>
+                      <div className="text-xs font-black text-slate-900">
+                        {(wp.engagementTypes || []).includes("daily") && (
+                          <span className="block">
+                            {tx("Daily")}: {formatPrice(DAILY_HIRING_FEE_USD)}
+                          </span>
+                        )}
+                        {(wp.engagementTypes || []).includes("monthly") && (
+                          <span className="block">
+                            {tx("Monthly")}: {formatPrice(MONTHLY_HIRING_FEE_USD)}
+                          </span>
+                        )}
+                        {(wp.engagementTypes || []).length === 0 && (
+                          <span className="block">
+                            {tx("Daily")}: {formatPrice(DAILY_HIRING_FEE_USD)}
+                          </span>
+                        )}
                       </div>
                       <span className="text-[10px] text-sky-800 font-bold block mt-0.5">
                         {(wp.engagementTypes || []).includes("daily")

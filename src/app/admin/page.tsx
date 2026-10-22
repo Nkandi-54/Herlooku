@@ -37,7 +37,12 @@ import {
   Maximize2,
   AlertTriangle,
 } from "lucide-react";
-import { User, Booking, EmergencyAlarm, CONSTANT_HIRING_FEE_USD } from "@/types";
+import {
+  User,
+  Booking,
+  EmergencyAlarm,
+  hiringFeeUSD,
+} from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -66,6 +71,7 @@ function AdminDashboardPage() {
   // Emergency Response State
   const [alarmNotes, setAlarmNotes] = useState<Record<string, string>>({});
   const [alarmUpdating, setAlarmUpdating] = useState<string | null>(null);
+  const [bookingUpdating, setBookingUpdating] = useState<string | null>(null);
 
   // Verification Review State
   const [inspectUser, setInspectUser] = useState<User | null>(null);
@@ -201,6 +207,51 @@ function AdminDashboardPage() {
     }
   };
 
+  const handleBookingAction = async (
+    booking: Booking,
+    action: "complete" | "mark_worker_paid",
+  ) => {
+    if (
+      action === "mark_worker_paid" &&
+      !window.confirm(
+        `Confirm the Herlooku payout of ${formatPrice(
+          booking.workerExpectedDailySalary * booking.totalDays,
+        )} was sent to the worker.`,
+      )
+    ) {
+      return;
+    }
+    setBookingUpdating(booking.id);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/admin/bookings/${booking.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          text: data.error || "Could not update booking.",
+        });
+      } else {
+        setFeedback({
+          type: "success",
+          text:
+            action === "complete"
+              ? "Booking marked complete. Daily worker payout is now due."
+              : "Daily worker payout marked as sent.",
+        });
+        await fetchData();
+      }
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error" });
+    } finally {
+      setBookingUpdating(null);
+    }
+  };
+
   // Metrics Calculations
   const activeEmergencies = emergencies.filter(
     (e) => e.status === "active" || e.status === "responding"
@@ -209,7 +260,7 @@ function AdminDashboardPage() {
 
   const totalPlatformFees = bookings
     .filter((b) => b.status === "confirmed_exclusive" || b.status === "in_progress" || b.status === "completed")
-    .reduce((sum, b) => sum + (b.platformBookingFee || b.totalAmount || CONSTANT_HIRING_FEE_USD), 0);
+    .reduce((sum, b) => sum + (b.platformBookingFee || hiringFeeUSD(b.engagementType)), 0);
 
   const activeLocks = bookings.filter(
     (b) => b.status === "confirmed_exclusive" || b.status === "in_progress"
@@ -249,7 +300,7 @@ function AdminDashboardPage() {
             Herlooku Task Ninja Command Center
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            Manage live client–worker incident reports, verify identity credentials, audit constant Ksh 3,000 platform hiring fees, and supervise domestic worker exclusive locks.
+            Manage incident reports, verify identity credentials, audit daily and monthly hiring fees, and track daily worker wage payouts.
           </p>
         </div>
 
@@ -316,12 +367,12 @@ function AdminDashboardPage() {
           <div>
             <div className="text-2xl font-black text-white">{formatPrice(totalPlatformFees)}</div>
             <p className="text-[11px] text-slate-300 mt-1">
-              Constant Ksh 3,000 ($23.08) collected per exclusive booking
+              Daily fee Ksh 1,000; monthly fee Ksh 3,000
             </p>
           </div>
           <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-emerald-400 font-bold">
             <span>Direct Web Owner Model</span>
-            <span>Zero Salary Held</span>
+            <span>Daily Wages Held Until Completion</span>
           </div>
         </div>
 
@@ -604,7 +655,7 @@ function AdminDashboardPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-xs font-black text-white block">
-                          {formatPrice(b.platformBookingFee || CONSTANT_HIRING_FEE_USD)}
+                          {formatPrice(b.platformBookingFee || hiringFeeUSD(b.engagementType))}
                         </span>
                         <span className="text-[9px] uppercase font-bold text-purple-400 bg-purple-950/50 px-2 py-0.5 rounded-full border border-purple-800/60 inline-block mt-0.5">
                           {b.status.replace("_", " ")}
@@ -625,15 +676,15 @@ function AdminDashboardPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
               <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-                <span className="font-bold text-white block mb-1">1. Constant Platform Hiring Fee</span>
+                <span className="font-bold text-white block mb-1">1. Engagement-Based Hiring Fee</span>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Every booking collects an upfront platform hiring fee of exactly Ksh 3,000 ($23.08) paid directly to the web owner.
+                  Daily bookings charge Ksh 1,000; monthly bookings charge Ksh 3,000. The client pays the fee to Herlooku at booking.
                 </p>
               </div>
               <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-                <span className="font-bold text-white block mb-1">2. Zero Platform Worker Salary</span>
+                <span className="font-bold text-white block mb-1">2. Daily Worker Wage Payout</span>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  The website never touches helper salary. The helper&apos;s stated expected pay is settled directly in cash/M-Pesa at the end of each work day.
+                  Daily wages are collected at booking and held by Herlooku until task completion, then paid to the worker. Monthly employers pay workers directly.
                 </p>
               </div>
               <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
@@ -1084,7 +1135,7 @@ function AdminDashboardPage() {
                 <span>Platform Bookings & Web Owner Fee Ledger</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Every booking exclusively charges the constant platform fee (Ksh 3,000 / $23.08) directly to the web owner.
+                Daily hires have a Ksh 1,000 fee and wages collected by Herlooku for payout after completion. Monthly hires have a Ksh 3,000 fee; employers pay wages directly.
               </p>
             </div>
             <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-right">
@@ -1105,9 +1156,10 @@ function AdminDashboardPage() {
                     <th className="px-6 py-4">Booking Ref</th>
                     <th className="px-6 py-4">Service & Address</th>
                     <th className="px-6 py-4">Reserved Dates</th>
-                    <th className="px-6 py-4">Constant Hiring Fee</th>
-                    <th className="px-6 py-4">Worker Daily Pay</th>
+                    <th className="px-6 py-4">Hiring Fee</th>
+                    <th className="px-6 py-4">Worker Pay</th>
                     <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Action / Payout</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-slate-300">
@@ -1133,15 +1185,25 @@ function AdminDashboardPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-black text-emerald-400 text-sm block">
-                          {formatPrice(b.platformBookingFee || CONSTANT_HIRING_FEE_USD)}
+                          {formatPrice(b.platformBookingFee || hiringFeeUSD(b.engagementType))}
                         </span>
                         <span className="text-[10px] text-slate-500">one-time web owner fee</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-bold text-sky-300 block">
-                          {formatPrice(b.workerExpectedDailySalary || 8)}/day
+                          {b.engagementType === "daily"
+                            ? `${formatPrice(b.workerExpectedDailySalary * b.totalDays)} held`
+                            : `${formatPrice(b.workerExpectedMonthlySalary || 0)}/month`}
                         </span>
-                        <span className="text-[10px] text-slate-500">paid offline at end of day</span>
+                        <span className="text-[10px] text-slate-500">
+                          {b.engagementType === "daily"
+                            ? b.escrowStatus === "released"
+                              ? "paid by Herlooku"
+                              : b.status === "completed"
+                                ? "payout due after completion"
+                                : "held by Herlooku until completion"
+                            : "paid directly by employer"}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -1155,6 +1217,37 @@ function AdminDashboardPage() {
                         >
                           {b.status.replace("_", " ")}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {b.status !== "completed" &&
+                          (b.status === "confirmed_exclusive" || b.status === "in_progress") && (
+                            <button
+                              type="button"
+                              disabled={bookingUpdating === b.id}
+                              onClick={() => handleBookingAction(b, "complete")}
+                              className="rounded-lg bg-sky-700 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
+                            >
+                              {bookingUpdating === b.id ? "Saving..." : "Mark task complete"}
+                            </button>
+                          )}
+                        {b.engagementType === "daily" &&
+                          b.status === "completed" &&
+                          b.escrowStatus === "holding" && (
+                            <button
+                              type="button"
+                              disabled={bookingUpdating === b.id}
+                              onClick={() => handleBookingAction(b, "mark_worker_paid")}
+                              className="rounded-lg bg-emerald-700 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
+                            >
+                              {bookingUpdating === b.id ? "Saving..." : "Mark worker payout sent"}
+                            </button>
+                          )}
+                        {b.engagementType === "daily" &&
+                          b.escrowStatus === "released" && (
+                            <span className="text-[10px] font-bold text-emerald-400">
+                              Payout sent
+                            </span>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -1383,4 +1476,3 @@ export default function AdminDashboardPageWithSuspense() {
     </Suspense>
   );
 }
-

@@ -15,9 +15,9 @@ function isPubliclyVisible(profile: {
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = params;
+  const { id } = await params;
   const profile = await db.getWorkerProfileByUserId(id);
 
   if (!profile) {

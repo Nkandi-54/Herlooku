@@ -43,9 +43,24 @@ export interface MpesaPayment {
   paidAt?: string;
 }
 
-// Constant Platform Hiring Fee (Ksh 3,000 for all workers)
-export const CONSTANT_HIRING_FEE_KES = 3000;
-export const CONSTANT_HIRING_FEE_USD = 23.076923; // Exactly Ksh 3,000 at 1 USD = 130 KES
+export const KES_PER_USD = 130;
+export const DAILY_HIRING_FEE_KES = 1000;
+export const MONTHLY_HIRING_FEE_KES = 3000;
+export const DAILY_HIRING_FEE_USD = DAILY_HIRING_FEE_KES / KES_PER_USD;
+export const MONTHLY_HIRING_FEE_USD = MONTHLY_HIRING_FEE_KES / KES_PER_USD;
+/** Legacy name retained for existing monthly bookings and callers. */
+export const CONSTANT_HIRING_FEE_KES = MONTHLY_HIRING_FEE_KES;
+export const CONSTANT_HIRING_FEE_USD = MONTHLY_HIRING_FEE_USD;
+
+export function hiringFeeKES(engagementType: EngagementType): number {
+  return engagementType === "daily"
+    ? DAILY_HIRING_FEE_KES
+    : MONTHLY_HIRING_FEE_KES;
+}
+
+export function hiringFeeUSD(engagementType: EngagementType): number {
+  return hiringFeeKES(engagementType) / KES_PER_USD;
+}
 
 export interface User {
   id: string;
@@ -86,7 +101,7 @@ export interface WorkerProfile {
   headline: string;
   bio: string;
   services: string[]; // e.g. ["Housekeeping", "Cooking", "Childcare", "Elderly Care", "Deep Cleaning", "Laundry"]
-  hireFee: number; // Platform booking fee / legacy fee
+  hireFee: number; // Lowest applicable hiring fee, used by directory filters
   engagementTypes: EngagementType[]; // Which engagements the worker offers: daily (1–2 day jobs), monthly, or both
   expectedDailySalary: number; // Stated daily pay for daily/short-term jobs at end of day (in USD base)
   expectedMonthlySalary: number; // Stated monthly pay for monthly engagements (in USD base)
@@ -114,9 +129,11 @@ export interface Booking {
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   totalDays: number;
-  platformBookingFee: number; // Fee paid directly to web owner
-  workerExpectedDailySalary: number; // Stated salary paid directly by client to worker at end of day
-  totalAmount: number; // Equals platformBookingFee (web only charges the booking fee)
+  engagementType: EngagementType;
+  platformBookingFee: number; // Hiring fee paid to Herlooku
+  workerExpectedDailySalary: number;
+  workerExpectedMonthlySalary?: number;
+  totalAmount: number; // Amount collected by Herlooku at booking
   hireFee?: number; // Optional legacy field
   platformFee?: number; // Optional legacy field
   status: BookingStatus;

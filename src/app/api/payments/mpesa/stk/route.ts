@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { CONSTANT_HIRING_FEE_KES, MpesaPayment } from "@/types";
+import { KES_PER_USD, MpesaPayment } from "@/types";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 import {
   MpesaConfigurationError,
@@ -89,9 +89,10 @@ export async function POST(req: Request) {
     }
 
     const phone = normaliseKenyanPhone(String(phoneNumber));
+    const amountKes = Math.round(booking.totalAmount * KES_PER_USD);
     const stk = await requestStkPush({
       phoneNumber: phone,
-      amountKes: CONSTANT_HIRING_FEE_KES,
+      amountKes,
       accountReference: booking.bookingRef,
       description: "Herlooku hire",
     });
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
       id: crypto.randomUUID(),
       bookingId: booking.id,
       clientId: user.id,
-      amountKes: CONSTANT_HIRING_FEE_KES,
+      amountKes,
       phoneNumber: phone,
       status: "pending",
       merchantRequestId: stk.merchantRequestId,

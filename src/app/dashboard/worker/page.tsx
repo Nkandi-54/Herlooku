@@ -283,14 +283,20 @@ export default function WorkerDashboardPage() {
                 <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-sky-900">
-                      {tx("Expected Daily Pay:")}
+                      {bkg.engagementType === "daily"
+                        ? tx("Expected Daily Pay:")
+                        : tx("Expected Monthly Pay:")}
                     </span>
                     <span className="text-xs font-black text-sky-800">
-                      {formatPrice(profile?.expectedDailySalary || bkg.workerExpectedDailySalary || 8)}{tx(" / day expected")}
+                      {bkg.engagementType === "daily"
+                        ? `${formatPrice(profile?.expectedDailySalary || bkg.workerExpectedDailySalary || 8)}${tx(" / day expected")}`
+                        : `${formatPrice(profile?.expectedMonthlySalary || bkg.workerExpectedMonthlySalary || 0)}${tx(" / month expected")}`}
                     </span>
                   </div>
                   <p className="text-[10px] text-sky-700 leading-tight">
-                    {tx("Collect directly from the client at the end of each work day. Herlooku Task Ninja does not hold or deduct from your salary.")}
+                    {bkg.engagementType === "daily"
+                      ? tx("Herlooku pays your held wages after the task is completed.")
+                      : tx("Your employer pays your monthly salary directly to you.")}
                   </p>
                 </div>
 

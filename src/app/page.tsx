@@ -28,7 +28,12 @@ import {
   BadgeCheck,
   Clock,
 } from "lucide-react";
-import { WorkerProfile, User, CONSTANT_HIRING_FEE_USD } from "@/types";
+import {
+  WorkerProfile,
+  User,
+  DAILY_HIRING_FEE_USD,
+  MONTHLY_HIRING_FEE_USD,
+} from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -121,15 +126,15 @@ const STEPS = [
   },
   {
     n: "03",
-    title: "Pay the Hire Fee Upfront",
-    body: "Pay the one-time exclusive hire fee. The worker's calendar locks to you alone — zero double-booking, guaranteed.",
+    title: "Pay Herlooku Upfront",
+    body: "Daily bookings include the Ksh 1,000 hiring fee and booked wages held by Herlooku until completion. Monthly bookings include the Ksh 3,000 fee; employers pay wages directly.",
     icon: CreditCard,
     highlight: true,
   },
   {
     n: "04",
     title: "Direct Till Verification & Dispatch",
-    body: "Approve the Ksh 3,000 M-Pesa prompt. Once Safaricom confirms it, Herlooku exclusively locks the schedule and coordinates arrival.",
+    body: "Approve the M-Pesa prompt for your selected engagement. Once Safaricom confirms it, Herlooku locks the schedule and coordinates arrival.",
     icon: BadgeCheck,
   },
 ];
@@ -141,7 +146,7 @@ const FAQS = [
   },
   {
     q: "What exactly does the upfront hire fee cover?",
-    a: "The fixed Ksh 3,000 exclusive hire fee reserves your chosen helper's calendar solely for your household over the agreed dates. It is confirmed by M-Pesa before dispatch. Worker daily salary is paid directly to them offline.",
+    a: "Daily hires have a Ksh 1,000 fee and daily wages collected by Herlooku, which pays the worker after task completion. Monthly hires have a Ksh 3,000 fee, and employers pay monthly wages directly.",
   },
   {
     q: "How does Herlooku Task Ninja prevent double-booking?",
@@ -224,7 +229,7 @@ export default function HomePage() {
             </h1>
 
             <p className="animate-fade-up delay-150 text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
-              {tx("No double-bookings. No unvetted strangers. Every client and worker passes government ID verification, and your fixed Ksh 3,000 hire fee is verified by M-Pesa before exclusive dispatch.")}
+              {tx("No double-bookings. No unvetted strangers. Every client and worker passes government ID verification. Daily hires cost Ksh 1,000 plus wages held by Herlooku until task completion; monthly hires cost Ksh 3,000, with wages paid directly by employers.")}
             </p>
 
             {/* Search card */}
@@ -412,7 +417,9 @@ export default function HomePage() {
                       {tx("One-time hire fee")}
                     </span>
                     <span className="text-2xl font-black">
-                      {formatPrice(CONSTANT_HIRING_FEE_USD)}
+                      {tx("Daily")}: {formatPrice(DAILY_HIRING_FEE_USD)}
+                      {" · "}
+                      {tx("Monthly")}: {formatPrice(MONTHLY_HIRING_FEE_USD)}
                     </span>
                   </div>
                   <Clock size={28} className="text-brand-400/50" />
@@ -647,7 +654,9 @@ export default function HomePage() {
                       </span>
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-lg font-black text-slate-900 leading-none">
-                          {formatPrice(CONSTANT_HIRING_FEE_USD)}
+                          {tx("Daily")}: {formatPrice(DAILY_HIRING_FEE_USD)}
+                          {" · "}
+                          {tx("Monthly")}: {formatPrice(MONTHLY_HIRING_FEE_USD)}
                         </span>
                         <span className="text-[10px] text-sky-700 font-bold leading-none">
                           {wp.engagementTypes.includes("monthly") && wp.expectedMonthlySalary

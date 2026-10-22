@@ -10,7 +10,7 @@ import {
   EmergencyAlarm,
   EmergencyAlarmType,
   MpesaPayment,
-  CONSTANT_HIRING_FEE_USD,
+  hiringFeeUSD,
 } from "@/types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,14 +30,19 @@ type ProfileRow = Parameters<typeof mapProfile>[0];
 // ── Row mappers ─────────────────────────────────────────────────────────────
 
 function mapWorkerProfile(row: any): WorkerProfile {
+  const engagementTypes = row.engagement_types ?? [];
   return {
     id: row.id,
     userId: row.user_id,
     headline: row.headline,
     bio: row.bio,
     services: row.services ?? [],
-    hireFee: CONSTANT_HIRING_FEE_USD,
-    engagementTypes: row.engagement_types ?? [],
+    hireFee: hiringFeeUSD(
+      engagementTypes.includes("daily") || engagementTypes.length === 0
+        ? "daily"
+        : "monthly",
+    ),
+    engagementTypes,
     expectedDailySalary: Number(row.expected_daily_salary ?? 0),
     expectedMonthlySalary: Number(row.expected_monthly_salary ?? 0),
     location: row.location,
@@ -66,8 +71,10 @@ function mapBooking(row: any): Booking {
     startDate: row.start_date,
     endDate: row.end_date,
     totalDays: row.total_days,
+    engagementType: row.engagement_type ?? "monthly",
     platformBookingFee: Number(row.platform_booking_fee),
     workerExpectedDailySalary: Number(row.worker_expected_daily_salary),
+    workerExpectedMonthlySalary: Number(row.worker_expected_monthly_salary ?? 0),
     totalAmount: Number(row.total_amount),
     status: row.status,
     escrowStatus: row.escrow_status,
@@ -142,20 +149,20 @@ function mapAlarm(row: any): EmergencyAlarm {
 // ── Repository ──────────────────────────────────────────────────────────────
 
 class Database {
-  private sb() {
+  private async sb() {
     return createServerSupabase();
   }
 
   // ── Users / profiles ─────────────────────────────────────────────────────
 
   async getUsers(): Promise<User[]> {
-    const { data, error } = await this.sb().from("profiles").select("*");
+    const { data, error } = await (await this.sb()).from("profiles").select("*");
     if (error) throw new Error(error.message);
     return (data ?? []).map((row) => mapProfile(row as ProfileRow));
   }
 
   async getUserById(id: string): Promise<User | undefined> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("profiles")
       .select("*")
       .eq("id", id)
@@ -165,7 +172,7 @@ class Database {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("profiles")
       .select("*")
       .ilike("email", email.trim())
@@ -175,14 +182,14 @@ class Database {
   }
 
   async countUsers(): Promise<number> {
-    const { count } = await this.sb()
+    const { count } = await (await this.sb())
       .from("profiles")
       .select("*", { count: "exact", head: true });
     return count ?? 0;
   }
 
   async countAdmins(): Promise<number> {
-    const { count } = await this.sb()
+    const { count } = await (await this.sb())
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("role", "admin");
@@ -204,7 +211,7 @@ class Database {
       return (await this.getUserById(id)) ?? null;
     }
 
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("profiles")
       .update(patch)
       .eq("id", id)
@@ -223,7 +230,7 @@ class Database {
   async getWorkerProfiles(
     onlyPublic = true,
   ): Promise<(WorkerProfile & { user: User })[]> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("worker_profiles")
       .select("*, profiles:user_id (*)");
 
@@ -250,7 +257,7 @@ class Database {
   async getWorkerProfileByUserId(
     userId: string,
   ): Promise<(WorkerProfile & { user: User }) | null> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("worker_profiles")
       .select("*, profiles:user_id (*)")
       .eq("user_id", userId)
@@ -291,7 +298,7 @@ class Database {
     if (updates.availableDays !== undefined)
       patch.available_days = updates.availableDays;
 
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("worker_profiles")
       .update(patch)
       .eq("user_id", userId)
@@ -305,7 +312,7 @@ class Database {
   // ── Bookings ─────────────────────────────────────────────────────────────
 
   async getBookings(): Promise<Booking[]> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("bookings")
       .select("*")
       .order("created_at", { ascending: false });
@@ -314,7 +321,7 @@ class Database {
   }
 
   async getBookingById(id: string): Promise<Booking | undefined> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("bookings")
       .select("*")
       .eq("id", id)
@@ -324,7 +331,7 @@ class Database {
   }
 
   async getBookingsForWorker(workerId: string): Promise<Booking[]> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("bookings")
       .select("*")
       .eq("worker_id", workerId)
@@ -335,7 +342,7 @@ class Database {
   }
 
   async getBookingsForClient(clientId: string): Promise<Booking[]> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("bookings")
       .select("*")
       .eq("client_id", clientId)
@@ -349,7 +356,7 @@ class Database {
     startDate: string,
     endDate: string,
   ): Promise<boolean> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("bookings")
       .select("id,start_date,end_date")
       .eq("worker_id", workerId)
@@ -365,7 +372,7 @@ class Database {
   }
 
   async createBooking(booking: Booking): Promise<Booking> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("bookings")
       .insert({
         booking_ref: booking.bookingRef,
@@ -375,8 +382,10 @@ class Database {
         start_date: booking.startDate,
         end_date: booking.endDate,
         total_days: booking.totalDays,
+        engagement_type: booking.engagementType,
         platform_booking_fee: booking.platformBookingFee,
         worker_expected_daily_salary: booking.workerExpectedDailySalary,
+        worker_expected_monthly_salary: booking.workerExpectedMonthlySalary ?? 0,
         total_amount: booking.totalAmount,
         status: booking.status,
         escrow_status: booking.escrowStatus,
@@ -424,7 +433,7 @@ class Database {
   }
 
   async getMpesaPaymentById(id: string): Promise<MpesaPayment | undefined> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("mpesa_payments")
       .select("*")
       .eq("id", id)
@@ -449,7 +458,7 @@ class Database {
   async getPendingMpesaPaymentForBooking(
     bookingId: string,
   ): Promise<MpesaPayment | undefined> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("mpesa_payments")
       .select("*")
       .eq("booking_id", bookingId)
@@ -492,8 +501,8 @@ class Database {
 
     const booking = mapBooking(bookingRow);
 
-    // Idempotency: Safaricom may deliver the same callback repeatedly.
-    if (payment.status === "paid" && booking.status === "confirmed_exclusive") {
+    // Idempotency: Safaricom may deliver the same callback after completion.
+    if (payment.status === "paid") {
       return booking;
     }
 
@@ -603,7 +612,7 @@ class Database {
     selfieUrl: string,
     idDocumentBackUrl?: string,
   ): Promise<User | null> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("profiles")
       .update({
         id_verification_status: "pending",
@@ -686,7 +695,7 @@ class Database {
   // ── Reviews ──────────────────────────────────────────────────────────────
 
   async getReviewsForWorker(workerId: string): Promise<Review[]> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("reviews")
       .select("*")
       .eq("worker_id", workerId)
@@ -698,7 +707,7 @@ class Database {
   // ── Incident reports ─────────────────────────────────────────────────────
 
   async getEmergencyAlarms(): Promise<EmergencyAlarm[]> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("emergencies")
       .select("*")
       .order("created_at", { ascending: false });
@@ -717,7 +726,7 @@ class Database {
     details: string;
     location: string;
   }): Promise<EmergencyAlarm> {
-    const { data, error } = await this.sb()
+    const { data, error } = await (await this.sb())
       .from("emergencies")
       .insert({
         booking_id:

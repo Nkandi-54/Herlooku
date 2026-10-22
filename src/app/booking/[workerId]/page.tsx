@@ -18,7 +18,13 @@ import {
   ShieldAlert,
   Coins,
 } from "lucide-react";
-import { WorkerProfile, User, Booking, CONSTANT_HIRING_FEE_USD } from "@/types";
+import {
+  WorkerProfile,
+  User,
+  Booking,
+  EngagementType,
+  hiringFeeUSD,
+} from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -131,13 +137,20 @@ function BookingCheckoutPage() {
     );
   }
 
-  // Pricing: Platform booking fee paid directly to web owner ($15 / Ksh 1,950)
-  // Pricing: Platform hiring fee paid directly to web owner (Constant 3,000 Ksh / $23.08)
-  const platformBookingFee = CONSTANT_HIRING_FEE_USD;
-  const workerExpectedDailySalary = workerData.expectedDailySalary || 8;
-  const totalAmount = platformBookingFee; // Only constant hiring fee charged online
+  const availableEngagements: EngagementType[] =
+    workerData.engagementTypes?.length > 0
+      ? workerData.engagementTypes
+      : ["daily"];
+  const requestedEngagement = searchParams.get("engagementType");
+  const engagementType: EngagementType =
+    requestedEngagement === "monthly" &&
+    availableEngagements.includes("monthly")
+      ? "monthly"
+      : availableEngagements.includes("daily")
+        ? "daily"
+        : "monthly";
 
-  let totalDays = 1;
+  let totalDays = 0;
   if (startDate && endDate) {
     const s = new Date(startDate);
     const e = new Date(endDate);
@@ -146,6 +159,19 @@ function BookingCheckoutPage() {
       totalDays = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
     }
   }
+  const platformBookingFee = hiringFeeUSD(engagementType);
+  const workerExpectedDailySalary =
+    engagementType === "daily" ? workerData.expectedDailySalary || 8 : 0;
+  const workerExpectedMonthlySalary =
+    engagementType === "monthly"
+      ? workerData.expectedMonthlySalary ||
+        Math.round((workerData.expectedDailySalary || 8) * 26)
+      : 0;
+  const workerSalaryDueAtBooking =
+    engagementType === "daily"
+      ? workerExpectedDailySalary * totalDays
+      : 0;
+  const totalAmount = platformBookingFee + workerSalaryDueAtBooking;
 
   // Handle booking creation + payment
   const handleExecutePayment = async () => {
@@ -164,6 +190,7 @@ function BookingCheckoutPage() {
           endDate,
           clientAddress,
           specialInstructions,
+          engagementType,
         }),
       });
 
@@ -308,7 +335,12 @@ function BookingCheckoutPage() {
           <div className="space-y-2">
             <span className="eyebrow">{tx("Awaiting secure confirmation")}</span>
             <h1 className="text-2xl font-black text-slate-900">{tx("Complete the M-Pesa prompt on your phone")}</h1>
-            <p className="text-sm text-slate-600 leading-relaxed">{t("copy:We will lock {name}’s calendar only after Safaricom confirms the Ksh 3,000 payment.", { name: workerData.user.name })}</p>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              {t("copy:We will lock {name}’s calendar after Safaricom confirms your {amount} payment.", {
+                name: workerData.user.name,
+                amount: formatPrice(totalAmount),
+              })}
+            </p>
           </div>
           <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-600">
             {tx("Booking Reference")} <strong className="text-slate-900">{pendingBooking.bookingRef}</strong>
@@ -341,7 +373,7 @@ function BookingCheckoutPage() {
           {tx("Exclusive Hire Fee Checkout")}
         </h1>
         <p className="text-xs sm:text-sm text-slate-600">
-          Pay the exclusive hire fee upfront to secure <strong>{workerData.user.name}</strong>.
+          Pay Herlooku to secure <strong>{workerData.user.name}</strong>.
           Your worker is locked only after Safaricom confirms the M-Pesa payment.
         </p>
       </div>
@@ -552,15 +584,31 @@ function BookingCheckoutPage() {
             {/* Pricing table */}
             <div className="space-y-2.5 text-xs border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-600">
-                <span>{tx("Constant Platform Hiring Fee")}</span>
+                <span>{tx(engagementType === "daily" ? "Daily Platform Hiring Fee" : "Monthly Platform Hiring Fee")}</span>
                 <span className="font-semibold text-slate-900">{formatPrice(platformBookingFee)}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>{tx("Worker Stated Daily Pay")}</span>
-                <span className="font-semibold text-sky-800">{formatPrice(workerExpectedDailySalary)} / day</span>
-              </div>
+              {engagementType === "daily" ? (
+                <>
+                  <div className="flex justify-between text-slate-600">
+                    <span>{tx("Daily worker wages held by Herlooku")}</span>
+                    <span className="font-semibold text-sky-800">
+                      {formatPrice(workerSalaryDueAtBooking)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-sky-800">
+                    {formatPrice(workerExpectedDailySalary)} / {tx("day")} × {totalDays} {tx("days")}
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-slate-600">
+                  <span>{tx("Expected monthly worker pay")}</span>
+                  <span className="font-semibold text-sky-800">
+                    {formatPrice(workerExpectedMonthlySalary)} / {tx("month")}
+                  </span>
+                </div>
+              )}
               <div className="pt-3 border-t border-slate-200 flex justify-between text-base font-black text-slate-900">
-                <span>{tx("Total Due Online Now")}</span>
+                <span>{tx("Total Due to Herlooku Now")}</span>
                 <span className="text-brand-700">{formatPrice(totalAmount)}</span>
               </div>
             </div>
@@ -569,7 +617,9 @@ function BookingCheckoutPage() {
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 space-y-1">
               <span className="font-bold block">{tx("Important Payment Terms:")}</span>
               <p className="leading-tight text-amber-800">
-                {t("copy:The fee charged online now ({amount}) is the constant hiring fee of Ksh 3,000 paid directly to the web owner to exclusively lock this worker’s calendar. The website does not handle worker salary. You pay the worker’s stated pay ({daily}/day) directly to the worker at the end of each work day.", { amount: formatPrice(totalAmount), daily: formatPrice(workerExpectedDailySalary) })}
+                {engagementType === "daily"
+                  ? tx("Your payment includes the daily hiring fee and all booked daily wages. Herlooku holds the wages and pays the worker after the task is completed.")
+                  : tx("Your payment includes the monthly hiring fee only. Pay the worker’s monthly salary directly to them.")}
               </p>
             </div>
 
@@ -623,9 +673,12 @@ function BookingCheckoutPage() {
 
             <div className="space-y-1.5 text-[11px] text-slate-400 text-center">
               <p>{tx("Worker’s calendar locked exclusively upon payment.")}</p>
-              <p>{tx("This is a one-time hire fee, not a recurring salary.")}</p>
-              <p>{tx("Upfront fee paid directly to web owner for exclusive reservation.")}</p>
-              <p>{tx("Worker salary paid directly to worker at end of day.")}</p>
+              <p>{tx("Your calendar is locked after the payment is confirmed.")}</p>
+              <p>
+                {engagementType === "daily"
+                  ? tx("Herlooku pays the daily worker after task completion.")
+                  : tx("Monthly workers are paid directly by their employers.")}
+              </p>
             </div>
           </div>
         </div>

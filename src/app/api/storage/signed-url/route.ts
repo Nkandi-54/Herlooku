@@ -32,7 +32,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const supabase = createServerSupabase();
+    const supabase = await createServerSupabase();
     const { data, error } = await supabase.storage
       .from("identity-documents")
       .createSignedUrl(path, 60 * 10); // 10 minutes

@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: process.cwd(),
   images: {
     domains: ["images.unsplash.com", "randomuser.me", "api.dicebear.com"],
   },
@@ -23,4 +24,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-
