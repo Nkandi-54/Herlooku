@@ -155,12 +155,12 @@ enabled = false
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "https://herlooku.vercel.app"
+site_url = "https://herlookutaskninja.vercel.app"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
-  "https://herlooku.vercel.app/**",
+  "https://herlookutaskninja.vercel.app/**",
   "https://*.vercel.app/**",
   "http://localhost:3000/**",
   "http://127.0.0.1:3000/**"

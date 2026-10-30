@@ -147,7 +147,7 @@ The browser cannot verify a payment, submit a Till code, or lock a worker.
 ## Production checklist
 
 - [ ] Enable email confirmation in Supabase Auth
-- [ ] Set Supabase Auth Site URL to `https://herlooku.vercel.app` and add `https://herlooku.vercel.app/login` to Redirect URLs
+- [ ] Set Supabase Auth Site URL to `https://herlookutaskninja.vercel.app` and add `https://herlookutaskninja.vercel.app/**` to Redirect URLs
 - [ ] Enable Supabase backups and monitor `/api/payments/mpesa/config`
 - [ ] Set the service role key and M-Pesa credentials in the host environment
 - [ ] Complete privacy, safeguarding, refund and incident-response policies

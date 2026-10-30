@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { LanguageProvider } from "@/i18n/LanguageContext";
@@ -7,13 +6,10 @@ import { AdminLanguageGuard } from "@/i18n/AdminLanguageGuard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-});
-
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://herlookutaskninja.vercel.app",
+  ),
   title: {
     default: "Herlooku Task Ninja — Verified Househelps, Exclusively Booked",
     template: "%s · Herlooku Task Ninja",
@@ -45,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`h-full ${inter.variable}`}>
+    <html lang="en" className="h-full">
       <body className="h-full flex flex-col antialiased bg-sky-50/40 text-slate-900 font-sans">
         <LanguageProvider>
           <CurrencyProvider>

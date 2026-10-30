@@ -161,8 +161,7 @@ export const Navbar: React.FC = () => {
               </div>
               <div className="leading-none min-w-0">
                 <span className="text-[1.05rem] font-black tracking-tight text-white flex items-center gap-1.5">
-                  Her
-                  <span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">looku</span>
+                  <span className="whitespace-nowrap">Her<span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">looku</span></span>
                   <span className="hidden sm:inline-flex items-center gap-0.5 rounded-md bg-brand-500/15 border border-brand-400/25 px-1.5 py-[2px] text-[8px] font-black uppercase tracking-[0.12em] text-brand-300 leading-none">
                     <Zap size={7} className="shrink-0" /> {t("common.taskNinja")}
                   </span>

@@ -7,7 +7,7 @@
  * 3. NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL environment variable
  * 4. VERCEL_PROJECT_PRODUCTION_URL (Vercel system variable)
  * 5. VERCEL_URL (deployment preview URL)
- * 6. Canonical production fallback: https://herlooku.vercel.app (in production)
+ * 6. Canonical production fallback: https://herlookutaskninja.vercel.app (in production)
  * 7. Development fallback: http://localhost:3000
  */
 export function getSiteUrl(req?: Request | Headers): string {
@@ -60,7 +60,7 @@ export function getSiteUrl(req?: Request | Headers): string {
     return configured.replace(/\/+$/, "");
   }
 
-  // 4. Vercel project canonical production URL (e.g. herlooku.vercel.app)
+  // 4. Vercel project canonical production URL (e.g. herlookutaskninja.vercel.app)
   const vercelProjectUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   if (vercelProjectUrl) {
     const formatted = vercelProjectUrl.startsWith("http")
@@ -84,7 +84,7 @@ export function getSiteUrl(req?: Request | Headers): string {
 
   // 6. Production fallback (never default to localhost in production)
   if (process.env.NODE_ENV === "production") {
-    return "https://herlooku.vercel.app";
+    return "https://herlookutaskninja.vercel.app";
   }
 
   // 7. Local development fallback

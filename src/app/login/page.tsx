@@ -99,12 +99,7 @@ function LoginForm() {
               animated
             />
             <div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                Her
-                <span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">
-                  looku
-                </span>
-              </span>
+              <span className="text-2xl font-black tracking-tight text-white whitespace-nowrap">Her<span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">looku</span></span>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-0.5">
                 {t("common.brandTagline")}
               </p>
