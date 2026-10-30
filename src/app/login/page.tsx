@@ -1,23 +1,55 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
 import { NinjaAvatar } from "@/components/NinjaAvatar";
 import { useLanguage } from "@/i18n/LanguageContext";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLanguage();
-  const tx = (copy: string) => t(`copy:${copy}`);
+  const tx = useCallback((copy: string) => t(`copy:${copy}`), [t]);
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  const isConfirmed = searchParams.get("confirmed") === "true";
+  const urlError = searchParams.get("error");
+
+  // Auto-forward if user lands on /login with code or token_hash from verification email
+  useEffect(() => {
+    const code = searchParams.get("code");
+    const tokenHash = searchParams.get("token_hash");
+    if (code || tokenHash) {
+      router.replace(`/auth/callback?${searchParams.toString()}`);
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (urlError) {
+      setError(
+        urlError === "auth-code-error"
+          ? tx("The confirmation link is invalid or has expired. Please sign in or request a new link.")
+          : urlError,
+      );
+    }
+  }, [urlError, tx]);
+
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +70,11 @@ export default function LoginPage() {
       const role = data.activeUser?.role;
       const isAdmin = role === "admin" || role === "super_admin";
       router.push(
-        isAdmin ? "/admin" : role === "worker" ? "/dashboard/worker" : "/dashboard/client"
+        isAdmin
+          ? "/admin"
+          : role === "worker"
+            ? "/dashboard/worker"
+            : "/dashboard/client",
       );
     } catch {
       setError(tx("Network error. Please check your connection."));
@@ -64,27 +100,49 @@ export default function LoginPage() {
             />
             <div>
               <span className="text-2xl font-black tracking-tight text-white">
-                Her<span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">looku</span>
+                Her
+                <span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">
+                  looku
+                </span>
               </span>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-0.5">
                 {t("common.brandTagline")}
               </p>
             </div>
           </Link>
-          <h1 className="text-2xl font-black text-white text-center">{tx("Welcome back")}</h1>
-          <p className="text-sm text-slate-400 mt-1 text-center">{tx("Sign in to your Herlooku account")}</p>
+          <h1 className="text-2xl font-black text-white text-center">
+            {tx("Welcome back")}
+          </h1>
+          <p className="text-sm text-slate-400 mt-1 text-center">
+            {tx("Sign in to your Herlooku account")}
+          </p>
         </div>
 
         {/* Card */}
         <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Confirmed Notice */}
+            {isConfirmed && (
+              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-semibold flex items-center gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <span>
+                  {tx(
+                    "Your email has been confirmed! Please sign in to access your dashboard.",
+                  )}
+                </span>
+              </div>
+            )}
+
             {/* Email */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                 {tx("Email Address")}
               </label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Mail
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                />
                 <input
                   type="email"
                   required
@@ -108,7 +166,10 @@ export default function LoginPage() {
                 </span>
               </div>
               <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Lock
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                />
                 <input
                   type={showPw ? "text" : "password"}
                   required
@@ -154,14 +215,16 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
         </div>
 
         {/* Footer links */}
         <div className="text-center mt-6 space-y-3">
           <p className="text-sm text-slate-500">
             {tx("New to Herlooku?")}{" "}
-            <Link href="/register" className="text-brand-400 font-bold hover:text-brand-300 transition-colors">
+            <Link
+              href="/register"
+              className="text-brand-400 font-bold hover:text-brand-300 transition-colors"
+            >
               {tx("Create an account →")}
             </Link>
           </p>
@@ -172,5 +235,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -144,7 +144,7 @@ export async function POST(req: Request) {
       options: {
         // This must be an allow-listed URL in Supabase Auth. In production it
         // resolves to the canonical Vercel domain, never a localhost address.
-        emailRedirectTo: `${getSiteUrl()}/login`,
+        emailRedirectTo: `${getSiteUrl(req)}/auth/callback`,
         // Read by the handle_new_user trigger to populate the profile row.
         data: {
           name: name.trim(),
