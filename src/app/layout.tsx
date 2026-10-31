@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/i18n/LanguageContext";
 import { AdminLanguageGuard } from "@/i18n/AdminLanguageGuard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -59,6 +60,7 @@ export default function RootLayout({
             <Footer />
           </CurrencyProvider>
         </LanguageProvider>
+        <Analytics />
       </body>
     </html>
   );
