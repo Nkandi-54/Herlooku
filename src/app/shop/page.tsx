@@ -12,7 +12,7 @@ import {
   Coffee,
   MapPin,
   Phone,
-  Mail,
+  MessageCircle,
   ArrowRight,
   ArrowUpRight,
   CheckCircle2,
@@ -30,18 +30,38 @@ const ISLAND_LOGO = "/herkolu-island-logo.png";
 const OWNER_PHONE =
   process.env.NEXT_PUBLIC_DEFAULT_MPESA_NUMBER || "+254 740 042 359";
 
+/** WhatsApp needs digits only, without the leading `+` or any spaces. */
+const WHATSAPP_NUMBER = OWNER_PHONE.replace(/[^\d]/g, "");
+
+/**
+ * Build a wa.me deep link that opens WhatsApp with a ready-to-send message.
+ * The recipient still has to press send — this only pre-fills the chat.
+ */
+const whatsappHref = (message: string) =>
+  `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+
+/** Pre-filled order message for a single catalogue item. */
+const orderMessage = (item: string, category: string) =>
+  `Hi Herkolu Island! I'd like to order:\n\n• Item: ${item}\n• Category: ${category}\n• Quantity: \n\nPlease confirm the price and availability. Thank you!`;
+
+/** Pre-filled request for a laundry pickup, including the live estimate. */
+const laundryMessage = (kgs: number, kes: number) =>
+  `Hi Herkolu Island! I'd like to book a laundry pickup.\n\n• Load: ${kgs} kg\n• Estimated total: Ksh ${kes.toLocaleString()}\n• Pickup area: Mombasa — \n\nPlease confirm a collection time. Thank you!`;
+
 const CONTACTS = [
   {
-    label: "Call / WhatsApp",
+    label: "WhatsApp",
     value: OWNER_PHONE,
-    href: `tel:${OWNER_PHONE.replace(/\s/g, "")}`,
+    href: whatsappHref(
+      "Hi Herkolu Island! I'd like to place an order.",
+    ),
     icon: Phone,
   },
   {
-    label: "Email",
-    value: "trust@herlooku.com",
-    href: "mailto:trust@herlooku.com",
-    icon: Mail,
+    label: "Call",
+    value: OWNER_PHONE,
+    href: `tel:${OWNER_PHONE.replace(/\s/g, "")}`,
+    icon: Phone,
   },
   {
     label: "Location",
@@ -289,8 +309,8 @@ export default function ShopPage() {
   const safeKilos = Math.max(0, Math.floor(kilos || 0));
   const laundryKes = safeKilos * LAUNDRY_RATE_KES;
 
-  const orderHref = (subject: string) =>
-    `mailto:trust@herlooku.com?subject=${encodeURIComponent(subject)}`;
+  const orderHref = (item: string, categoryLabel: string) =>
+    whatsappHref(orderMessage(item, categoryLabel));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
@@ -334,10 +354,15 @@ export default function ShopPage() {
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <a
-                href={orderHref("Herlooku order enquiry")}
+                href={whatsappHref(
+                  "Hi Herkolu Island! I'd like to place an order.\n\n• Items: \n• Quantity: \n• Delivery area: Mombasa — \n\nPlease confirm the price and availability. Thank you!",
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-400 to-pink-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-rose-950 shadow-lg shadow-rose-500/30 hover:from-rose-300 hover:to-pink-400 transition-all"
               >
-                Place an order
+                <MessageCircle size={14} />
+                Order on WhatsApp
                 <ArrowRight size={14} />
               </a>
               <a
@@ -557,11 +582,14 @@ export default function ShopPage() {
                       : "Price on request"}
                   </span>
                   <a
-                    href={orderHref(`Order: ${item.name}`)}
+                    href={orderHref(item.name, label)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Order ${item.name} on WhatsApp`}
                     className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-700 hover:bg-rose-500 hover:border-rose-500 hover:text-white transition-colors"
                   >
+                    <MessageCircle size={11} />
                     Order
-                    <ArrowRight size={11} />
                   </a>
                 </div>
               </article>
@@ -647,9 +675,19 @@ export default function ShopPage() {
                 </span>
               </span>
             </div>
+            <a
+              href={whatsappHref(laundryMessage(safeKilos, laundryKes))}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-sky-500 transition-all"
+            >
+              <MessageCircle size={14} />
+              Book pickup on WhatsApp
+            </a>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Final price is confirmed by weight at collection. The minimum
-              charge is one kilogram.
+              The message is pre-filled with your {safeKilos} kg estimate. Final
+              price is confirmed by weight at collection. The minimum charge is
+              one kilogram.
             </p>
           </div>
 

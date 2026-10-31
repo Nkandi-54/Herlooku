@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { NinjaAvatar } from "@/components/NinjaAvatar";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -27,6 +28,16 @@ function LoginForm() {
 
   const isConfirmed = searchParams.get("confirmed") === "true";
   const urlError = searchParams.get("error");
+
+  // Recovery panel: "forgot" requests a reset link, "resend" re-sends the
+  // signup confirmation for an address that was never activated.
+  type HelpMode = "forgot" | "resend" | null;
+  const [helpMode, setHelpMode] = useState<HelpMode>(
+    searchParams.get("forgot") === "1" ? "forgot" : null,
+  );
+  const [helpLoading, setHelpLoading] = useState(false);
+  const [helpMessage, setHelpMessage] = useState("");
+  const [helpError, setHelpError] = useState("");
 
   // Auto-forward if user lands on /login with code or token_hash from verification email
   useEffect(() => {
@@ -46,6 +57,51 @@ function LoginForm() {
       );
     }
   }, [urlError, tx]);
+
+  // Surface the outcome of landing back from a reset or confirmation link.
+  useEffect(() => {
+    if (searchParams.get("reset") === "1") {
+      setHelpMessage(tx("Your password was changed. Sign in with your new password."));
+    }
+  }, [searchParams, tx]);
+
+  const openHelp = (mode: Exclude<HelpMode, null>) => {
+    setHelpMode(mode);
+    setHelpError("");
+    setHelpMessage("");
+  };
+
+  const sendHelp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!helpMode) return;
+    setHelpError("");
+    setHelpMessage("");
+
+    if (!form.email.trim()) {
+      setHelpError(tx("Please enter your email address."));
+      return;
+    }
+
+    setHelpLoading(true);
+    try {
+      const res = await fetch(`/api/auth/${helpMode === "forgot" ? "forgot-password" : "resend-confirmation"}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setHelpError(tx(data.error || "Something went wrong. Please try again."));
+        return;
+      }
+      setHelpMessage(tx(data.message));
+      setHelpMode(null);
+    } catch {
+      setHelpError(tx("Network error. Please check your connection."));
+    } finally {
+      setHelpLoading(false);
+    }
+  };
 
   const set =
     (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -183,7 +239,73 @@ function LoginForm() {
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => openHelp("resend")}
+                  className="text-[11px] font-bold text-slate-400 hover:text-brand-300 transition-colors"
+                >
+                  {tx("Email not confirmed? Resend link")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openHelp("forgot")}
+                  className="text-[11px] font-bold text-brand-400 hover:text-brand-300 transition-colors"
+                >
+                  {tx("Forgot password?")}
+                </button>
+              </div>
             </div>
+
+            {/* Recovery panel: reset link or re-send confirmation */}
+            {helpMode && (
+              <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-brand-300">
+                    {helpMode === "forgot"
+                      ? tx("Reset your password")
+                      : tx("Resend confirmation link")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setHelpMode(null)}
+                    aria-label={tx("Close")}
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-400">
+                  {helpMode === "forgot"
+                    ? tx("Enter the email you registered with and we will send you a link to choose a new password.")
+                    : tx("Enter the email you registered with and we will send a fresh confirmation link. You cannot sign in until it is opened.")}
+                </p>
+                <button
+                  type="button"
+                  onClick={sendHelp}
+                  disabled={helpLoading}
+                  className="w-full rounded-xl border border-brand-400/50 bg-brand-500/15 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-brand-200 hover:bg-brand-500/25 hover:border-brand-300/70 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {helpLoading
+                    ? tx("Sending…")
+                    : helpMode === "forgot"
+                      ? tx("Send reset link")
+                      : tx("Send confirmation link")}
+                </button>
+                {helpError && (
+                  <p className="text-[11px] font-semibold text-rose-400">{helpError}</p>
+                )}
+              </div>
+            )}
+
+            {helpMessage && (
+              <div
+                role="status"
+                className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-semibold"
+              >
+                {helpMessage}
+              </div>
+            )}
 
             {/* Error */}
             {error && (

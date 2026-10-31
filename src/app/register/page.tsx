@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Eye, EyeOff, Mail, Lock, User, Phone, MapPin,
-  Briefcase, Home, ArrowRight, ShieldCheck, CheckCircle2,
+  Briefcase, Home, ArrowRight, ShieldCheck, CheckCircle2, MailCheck, AlertTriangle,
 } from "lucide-react";
 import { NinjaAvatar } from "@/components/NinjaAvatar";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -111,12 +111,22 @@ export default function RegisterPage() {
               t("copy:Welcome to Herlooku, {name}! Redirecting to your dashboard…", { name: form.name })}
           </p>
           {confirmationMessage ? (
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white hover:bg-brand-500"
-            >
-              {tx("Continue to sign in")} <ArrowRight size={16} />
-            </Link>
+            <>
+              <div
+                role="note"
+                className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-left text-[11px] font-semibold leading-relaxed text-amber-200"
+              >
+                {tx(
+                  "You cannot sign in until this email is confirmed. Open the link now — it only takes a moment.",
+                )}
+              </div>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white hover:bg-brand-500"
+              >
+                {tx("Continue to sign in")} <ArrowRight size={16} />
+              </Link>
+            </>
           ) : (
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-600 mt-2">
               <ShieldCheck size={12} />
@@ -167,6 +177,37 @@ export default function RegisterPage() {
               />
             </div>
           ))}
+        </div>
+
+        {/* Email confirmation warning — shown before signup, not after */}
+        <div
+          role="note"
+          aria-label={tx("Confirm your email straight after signing up")}
+          className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 backdrop-blur-sm"
+        >
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/30">
+              <MailCheck size={16} />
+            </span>
+            <div className="min-w-0 space-y-1.5">
+              <p className="text-xs font-black uppercase tracking-wider text-amber-300">
+                {tx("Confirm your email straight after signing up")}
+              </p>
+              <p className="text-[12px] leading-relaxed text-amber-100/80">
+                {tx(
+                  "We send a confirmation link the moment your account is created. Open it immediately — until your email is confirmed you cannot sign in or use Herlooku.",
+                )}
+              </p>
+              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-200/60">
+                <AlertTriangle size={11} className="mt-0.5 shrink-0" />
+                <span>
+                  {tx(
+                    "Can’t find the email? Check your spam or promotions folder, then request a new link from the sign-in page.",
+                  )}
+                </span>
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Card */}

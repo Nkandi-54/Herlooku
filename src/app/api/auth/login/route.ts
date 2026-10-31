@@ -53,10 +53,42 @@ export async function POST(req: Request) {
     });
 
     if (error || !data.user) {
+      // An unconfirmed address is the one case worth naming: the password is
+      // correct, so a generic failure would send the user hunting for a reset
+      // that would not help. Supabase reports this as "Email not confirmed".
+      const unconfirmed =
+        error?.code === "email_not_confirmed" ||
+        /email not confirmed/i.test(error?.message ?? "");
+
+      if (unconfirmed) {
+        return NextResponse.json(
+          {
+            error:
+              "Your email address is not confirmed yet. Open the confirmation link we sent you (check spam), then sign in.",
+            code: "email_not_confirmed",
+          },
+          { status: 403 },
+        );
+      }
+
       // Deliberately generic: never reveal whether the email exists.
       return NextResponse.json(
         { error: "Incorrect email or password." },
         { status: 401 },
+      );
+    }
+
+    // Defence in depth: even with a valid password, an account whose address
+    // was never confirmed must not receive a session.
+    if (!data.user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        {
+          error:
+            "Your email address is not confirmed yet. Open the confirmation link we sent you (check spam), then sign in.",
+          code: "email_not_confirmed",
+        },
+        { status: 403 },
       );
     }
 

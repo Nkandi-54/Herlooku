@@ -38,8 +38,14 @@ export async function GET(request: NextRequest) {
     console.error("Auth callback verifyOtp error:", error.message);
   }
 
-  // If code or token_hash was missing or expired, redirect to login with confirmation status
-  return NextResponse.redirect(`${siteUrl}/login?confirmed=true`);
+  // The link was missing, expired or already used. Do NOT claim success here:
+  // redirecting with `confirmed=true` told users their address was verified
+  // when it was not, which then dead-ends against the confirmation gate.
+  return NextResponse.redirect(
+    `${siteUrl}/login?error=${encodeURIComponent(
+      "That link has expired or has already been used. Request a new one below.",
+    )}`,
+  );
 }
 
 async function handlePostAuthRedirect(

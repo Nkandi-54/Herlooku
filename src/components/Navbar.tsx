@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Search,
   Check,
+  Settings,
 } from "lucide-react";
 import { User, isAdminRole } from "@/types";
 import { Avatar } from "./Avatar";
@@ -118,6 +119,12 @@ export const Navbar: React.FC = () => {
   const profileHref = activeIsAdmin ? "/admin/profile"
     : activeUser?.role === "worker" ? "/dashboard/worker/profile"
     : "/dashboard/client/profile";
+
+  // Account & security (change password) only exists for the two dashboards,
+  // so admins fall back to their profile page rather than a 404.
+  const accountHref = activeIsAdmin ? "/admin/profile"
+    : activeUser?.role === "worker" ? "/dashboard/worker/account"
+    : "/dashboard/client/account";
 
   const roleMeta = activeUser ? (ROLE_META[activeUser.role] ?? ROLE_META.client) : null;
   const isPortalActive = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
@@ -260,6 +267,10 @@ export const Navbar: React.FC = () => {
                           <Avatar src={activeUser.avatar} name={activeUser.name} className="w-3.5 h-3.5 rounded-full" textClassName="text-[6px]" />
                           {t("nav.viewProfile")}
                         </Link>
+                        <Link href={accountHref} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-white/8 hover:text-white transition-colors">
+                          <Settings size={14} />
+                          {t("nav.accountSecurity")}
+                        </Link>
                         <Link href="/verify-id" className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-white/8 hover:text-white transition-colors">
                           <span className="flex items-center gap-2.5">
                             <ShieldCheck size={14} />
@@ -333,8 +344,14 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* ── Mobile drawer ──────────────────────────── */}
-      <div className={`lg:hidden overflow-hidden transition-[max-height,opacity] duration-300 ${mobileOpen ? "max-h-[42rem] opacity-100" : "max-h-0 opacity-0"}`}>
-        <div className="bg-slate-950/98 backdrop-blur-xl border-b border-white/10 px-4 pt-4 pb-5 space-y-1.5">
+      {/* `max-h-[42rem]` used to cap this hard, which silently clipped the last
+          rows once the menu grew. A generous ceiling still animates, and the
+          panel scrolls internally on short screens instead of hiding items.
+          The background is opaque slate-950: the previous `/98` step is not a
+          valid Tailwind opacity, so the class emitted no CSS at all and the
+          drawer was transparent, leaving pale text on the light page behind. */}
+      <div className={`lg:hidden overflow-hidden transition-[max-height,opacity] duration-300 ${mobileOpen ? "max-h-[calc(100dvh-3.5rem)] opacity-100" : "max-h-0 opacity-0"}`}>
+        <div className="bg-slate-950 backdrop-blur-xl border-b border-white/10 px-4 pt-4 pb-5 space-y-1.5 max-h-[calc(100dvh-3.5rem)] overflow-y-auto overscroll-contain">
           {/* Account card first — most important on small screens */}
           {activeUser ? (
             <Link
@@ -405,6 +422,17 @@ export const Navbar: React.FC = () => {
               }`}
             >
               <span className="flex items-center gap-2"><LayoutDashboard size={15} />{portalLabel}</span>
+              <ChevronRight size={14} className="text-slate-500" />
+            </Link>
+          )}
+
+          {activeUser && (
+            <Link
+              href={accountHref}
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 border border-transparent transition-colors"
+            >
+              <span className="flex items-center gap-2"><Settings size={15} />{t("nav.accountSecurity")}</span>
               <ChevronRight size={14} className="text-slate-500" />
             </Link>
           )}
