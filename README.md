@@ -25,6 +25,12 @@ supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 
+After deploying the ID-submission fix, run `supabase db push` against the
+linked production project. Migration
+`20261104101000_allow_owner_id_verification_submission.sql` allows an
+authenticated user to submit their own documents for review while still
+preventing them from approving or verifying themselves.
+
 That creates these tables:
 
 | Table | Purpose |

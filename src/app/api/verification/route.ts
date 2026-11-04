@@ -6,6 +6,7 @@ import {
   requireAdminUser,
   requireAuthenticatedUser,
 } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/supabase/server";
 import { isAdminRole } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +53,7 @@ export async function POST(req: Request) {
   try {
     const activeUser = await requireAuthenticatedUser(req);
     const body = await req.json();
-    const { idType, idNumber, idDocumentUrl, idDocumentBackUrl, selfieUrl } =
-      body;
+    const { idType, idNumber, idDocumentUrl, idDocumentBackUrl, selfieUrl } = body;
 
     if (!idType || !idNumber || !idDocumentUrl || !selfieUrl) {
       return NextResponse.json(
@@ -65,6 +65,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const normalizedIdNumber = String(idNumber).trim();
+    if (normalizedIdNumber.length < 2 || normalizedIdNumber.length > 100) {
+      return NextResponse.json(
+        { error: "Enter a valid document identification number." },
+        { status: 400 },
+      );
+    }
+
     if (!["national_id", "passport", "drivers_license"].includes(idType)) {
       return NextResponse.json(
         { error: "Unsupported document type." },
@@ -72,10 +80,49 @@ export async function POST(req: Request) {
       );
     }
 
+    if (
+      activeUser.idVerificationStatus === "pending" ||
+      activeUser.idVerificationStatus === "verified"
+    ) {
+      return NextResponse.json(
+        { error: "Your verification is already submitted or approved." },
+        { status: 409 },
+      );
+    }
+
+    const supabase = await createServerSupabase();
+    const documentPaths = [
+      idDocumentUrl,
+      selfieUrl,
+      ...(idDocumentBackUrl ? [idDocumentBackUrl] : []),
+    ];
+    for (const value of documentPaths) {
+      if (
+        typeof value !== "string" ||
+        !value.startsWith(`${activeUser.id}/`) ||
+        value.includes("..")
+      ) {
+        return NextResponse.json(
+          { error: "Please upload each required photo again before submitting." },
+          { status: 400 },
+        );
+      }
+
+      const { error } = await supabase.storage
+        .from("identity-documents")
+        .createSignedUrl(value, 60);
+      if (error) {
+        return NextResponse.json(
+          { error: "One or more photos could not be found in secure storage. Please upload them again." },
+          { status: 400 },
+        );
+      }
+    }
+
     const updatedUser = await db.submitIdVerification(
       activeUser.id,
       idType,
-      String(idNumber),
+      normalizedIdNumber,
       String(idDocumentUrl),
       String(selfieUrl),
       idDocumentBackUrl ? String(idDocumentBackUrl) : undefined,

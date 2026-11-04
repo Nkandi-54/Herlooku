@@ -88,7 +88,7 @@ export default function VerifyIdPage() {
       });
 
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data?.success && data?.user) {
         setFeedback({
           type: "success",
           text: tx("Verification submitted successfully! Switch to the Admin persona in the header to approve your ID."),
@@ -98,11 +98,15 @@ export default function VerifyIdPage() {
       } else {
         setFeedback({
           type: "error",
-          text: t(`copy:${data.error || "Failed to submit verification."}`),
+          text: t(`copy:${data?.error || "Failed to submit verification."}`),
         });
       }
-    } catch (e: any) {
-      setFeedback({ type: "error", text: t(`copy:${e.message || "An unexpected error occurred."}`) });
+    } catch (error) {
+      console.error("ID verification submission failed:", error);
+      setFeedback({
+        type: "error",
+        text: tx("Network error while submitting verification. Please try again."),
+      });
     } finally {
       setSubmitting(false);
     }

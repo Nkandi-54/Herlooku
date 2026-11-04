@@ -39,12 +39,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
+    if (kind !== "identity" && kind !== "avatar") {
+      return NextResponse.json({ error: "Unsupported upload type." }, { status: 400 });
+    }
+
     const ext = ALLOWED_MIME[file.type];
-    if (!ext) {
+    if (!ext || (kind === "identity" && file.type === "image/gif")) {
       return NextResponse.json(
         {
           error:
-            "Unsupported file type. Please upload a JPG, PNG, WEBP or GIF image.",
+            kind === "identity"
+              ? "Unsupported file type. Please upload a JPG, PNG or WEBP image."
+              : "Unsupported file type. Please upload a JPG, PNG, WEBP or GIF image.",
         },
         { status: 415 },
       );
@@ -80,8 +86,8 @@ export async function POST(req: Request) {
 
     if (uploadError) {
       return NextResponse.json(
-        { error: uploadError.message || "Upload failed." },
-        { status: 500 },
+        { error: uploadError.message || "The photo could not be stored. Please try again." },
+        { status: 502 },
       );
     }
 

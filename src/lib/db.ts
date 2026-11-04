@@ -629,7 +629,8 @@ class Database {
       .select("*")
       .maybeSingle();
 
-    if (error || !data) return null;
+    if (error) throw new Error(error.message);
+    if (!data) return null;
     return mapProfile(data as ProfileRow);
   }
 

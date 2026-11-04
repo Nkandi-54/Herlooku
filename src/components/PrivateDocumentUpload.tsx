@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Camera, Loader2, CheckCircle2, X } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 
@@ -36,17 +36,31 @@ export const PrivateDocumentUpload: React.FC<PrivateDocumentUploadProps> = ({
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
 
     setError("");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError(tx("Unsupported file type. Please upload a JPG, PNG or WEBP image."));
+      return;
+    }
+    if (file.size === 0 || file.size > 5 * 1024 * 1024) {
+      setError(tx("File must be greater than 0 bytes and no larger than 5 MB."));
+      return;
+    }
+
     setUploading(true);
 
     try {
-      // Local preview only — never leaves this component's state.
-      setPreview(URL.createObjectURL(file));
+      const localPreview = URL.createObjectURL(file);
+      setPreview(localPreview);
 
       const formData = new FormData();
       formData.append("file", file);
@@ -58,15 +72,14 @@ export const PrivateDocumentUpload: React.FC<PrivateDocumentUploadProps> = ({
       });
       const data = await res.json();
 
-      if (!res.ok) {
-        setPreview(null);
+      if (!res.ok || typeof data.path !== "string" || !data.path) {
         setError(data.error || tx("Upload failed. Please try again."));
         return;
       }
 
-      onChange(data.path as string);
-    } catch {
-      setPreview(null);
+      onChange(data.path);
+    } catch (uploadError) {
+      console.error("Identity photo upload failed:", uploadError);
       setError(tx("Network error during upload. Please try again."));
     } finally {
       setUploading(false);
@@ -156,6 +169,7 @@ export const PrivateDocumentUpload: React.FC<PrivateDocumentUploadProps> = ({
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        capture={aspect === "portrait" ? "user" : undefined}
         className="hidden"
         onChange={handleFile}
       />
