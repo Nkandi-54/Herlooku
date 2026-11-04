@@ -239,7 +239,7 @@ export async function POST(req: Request) {
         : 0);
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const bookingRef = `HLK-${new Date().getFullYear()}-${randomSuffix}`;
+    const bookingRef = `HLK-${String(new Date().getFullYear()).slice(-2)}-${randomSuffix}`;
 
     const newBooking: Booking = {
       id: crypto.randomUUID(),

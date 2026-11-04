@@ -50,8 +50,18 @@ export async function GET(req: Request) {
       }
     }
 
-    const freshBooking = await db.getBookingById(booking.id);
-    const freshPayment = await db.getMpesaPaymentById(payment.id);
+    let freshBooking = await db.getBookingById(booking.id);
+    let freshPayment = await db.getMpesaPaymentById(payment.id);
+    if (
+      freshPayment?.status === "pending" &&
+      freshBooking?.status === "pending_payment" &&
+      freshBooking.reservationExpiresAt &&
+      new Date(freshBooking.reservationExpiresAt).getTime() <= Date.now()
+    ) {
+      await db.expireMpesaPayment(payment.id);
+      freshBooking = await db.getBookingById(booking.id);
+      freshPayment = await db.getMpesaPaymentById(payment.id);
+    }
 
     return NextResponse.json({ booking: freshBooking, payment: freshPayment });
   } catch (error: any) {

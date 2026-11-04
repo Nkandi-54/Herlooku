@@ -88,6 +88,10 @@ export interface User {
   approvedBy?: string;
   /** Reason shown to the user when an account is rejected or suspended. */
   accountStatusReason?: string;
+  /** Soft-deleted accounts are hidden and cannot sign in; history is retained. */
+  deletedAt?: string;
+  deletedBy?: string;
+  deletionReason?: string;
   lastLoginAt?: string;
   /** Stored only server-side. Never return this field from an API response. */
   password?: string;
@@ -132,11 +136,13 @@ export interface WorkerProfile {
   availableDays: string[];
   skills: string[];
   featured?: boolean;
+  /** A payment prompt is active for this worker's reserved dates. */
+  bookingPending?: boolean;
 }
 
 export interface Booking {
   id: string;
-  bookingRef: string; // e.g. "HLK-2026-9042"
+  bookingRef: string; // e.g. "HLK-26-9042" (12-char M-Pesa reference limit)
   clientId: string;
   workerId: string;
   serviceName: string;

@@ -45,9 +45,14 @@ export async function GET(req: Request) {
     );
   }
 
+  const workersWithPendingBookings = await db.getWorkersWithPendingBookingsAsService(
+    profiles.map((profile) => profile.userId),
+  );
+
   return NextResponse.json({
     profiles: profiles.map((profile) => ({
       ...profile,
+      bookingPending: workersWithPendingBookings.has(profile.userId),
       user: publicWorkerUser(profile.user),
     })),
   });

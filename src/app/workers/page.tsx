@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useMemo } from "react";
+import React, { useState, useEffect, Suspense, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -59,7 +59,7 @@ function WorkersDirectoryContent() {
     if (urlSearch && urlSearch !== search) {
       setSearch(urlSearch);
     }
-  }, [urlService, urlSearch]);
+  }, [urlService, urlSearch, search, selectedService]);
 
   const services = [
     "All",
@@ -85,8 +85,8 @@ function WorkersDirectoryContent() {
       "Yard Care": tx("Yard & Maintenance"),
     })[service] || service;
 
-  const fetchProfiles = async () => {
-    setLoading(true);
+  const fetchProfiles = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (selectedService !== "All") params.set("service", selectedService);
@@ -125,13 +125,15 @@ function WorkersDirectoryContent() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
-  };
+  }, [selectedService, search, minRating, onlyLiveIn, maxDailyPay, sortBy]);
 
   useEffect(() => {
     fetchProfiles();
-  }, [selectedService, search, maxDailyPay, minRating, onlyLiveIn, sortBy]);
+    const refresh = window.setInterval(() => fetchProfiles(true), 15_000);
+    return () => window.clearInterval(refresh);
+  }, [fetchProfiles]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,7 +430,16 @@ function WorkersDirectoryContent() {
                   className="ring-conic group relative bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-soft hover:shadow-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between animate-rise-in"
                 >
                   <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-500 via-cyan-400 to-brand-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="p-6 space-y-4">
+                  {wp.bookingPending && (
+                    <span className="absolute right-4 top-4 z-10 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-900 shadow-sm">
+                      PENDING
+                    </span>
+                  )}
+                  <div
+                    className={`p-6 space-y-4 ${
+                      wp.bookingPending ? "grayscale opacity-60" : ""
+                    }`}
+                  >
                     {/* Top row: Avatar & Verification */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -506,7 +517,11 @@ function WorkersDirectoryContent() {
                   </div>
 
                   {/* Card Bottom CTA with engagement-specific fees and pay */}
-                  <div className="bg-slate-50/80 px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <div
+                    className={`bg-slate-50/80 px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3 ${
+                      wp.bookingPending ? "grayscale opacity-60" : ""
+                    }`}
+                  >
                     <div>
                       <span className="text-[10px] text-slate-400 font-semibold block uppercase">
                         {tx("Hiring fees")}

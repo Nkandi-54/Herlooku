@@ -61,10 +61,22 @@ export async function POST(req: Request) {
     }
 
     if (
+      booking.status !== "pending_payment" ||
+      !booking.reservationExpiresAt ||
+      new Date(booking.reservationExpiresAt).getTime() <= Date.now()
+    ) {
+      return NextResponse.json(
+        { error: "This booking reservation expired. Please select the dates again." },
+        { status: 409 },
+      );
+    }
+
+    if (
       !(await db.isWorkerExclusivelyAvailable(
         booking.workerId,
         booking.startDate,
         booking.endDate,
+        booking.id,
       ))
     ) {
       return NextResponse.json(
@@ -88,14 +100,27 @@ export async function POST(req: Request) {
       );
     }
 
-    const phone = normaliseKenyanPhone(String(phoneNumber));
     const amountKes = Math.round(booking.totalAmount * KES_PER_USD);
-    const stk = await requestStkPush({
-      phoneNumber: phone,
-      amountKes,
-      accountReference: booking.bookingRef,
-      description: "Herlooku hire",
-    });
+    let stk: Awaited<ReturnType<typeof requestStkPush>>;
+    let phone: string;
+    try {
+      phone = normaliseKenyanPhone(String(phoneNumber));
+      stk = await requestStkPush({
+        phoneNumber: phone,
+        amountKes,
+        accountReference: booking.bookingRef,
+        description: "Herlooku hire",
+      });
+    } catch (error) {
+      await db.updateBookingAsService(booking.id, {
+        status: "cancelled",
+        payment_status: "failed",
+        payment_failure_reason:
+          error instanceof Error ? error.message : "Could not start M-Pesa payment.",
+        reservation_expires_at: null,
+      });
+      throw error;
+    }
 
     const now = new Date().toISOString();
     const payment: MpesaPayment = {
@@ -108,7 +133,7 @@ export async function POST(req: Request) {
       merchantRequestId: stk.merchantRequestId,
       checkoutRequestId: stk.checkoutRequestId,
       paybillNumber: process.env.MPESA_SHORTCODE || "542542",
-      accountReference: process.env.MPESA_ACCOUNT_NUMBER || "01410637946150",
+      accountReference: booking.bookingRef,
       createdAt: now,
       updatedAt: now,
     };
@@ -127,6 +152,9 @@ export async function POST(req: Request) {
         success: true,
         paymentId: created.id,
         checkoutRequestId: stk.checkoutRequestId,
+        amountKes,
+        paybillNumber: payment.paybillNumber,
+        accountReference: payment.accountReference,
         message:
           "Check your phone and enter your M-Pesa PIN. Your worker is not locked until Safaricom confirms payment.",
       },

@@ -6,11 +6,16 @@ import { isAdminRole } from "@/types";
 export const dynamic = "force-dynamic";
 
 function isPubliclyVisible(profile: {
-  user: { idVerificationStatus: string; accountStatus?: string };
+  user: {
+    idVerificationStatus: string;
+    accountStatus?: string;
+    deletedAt?: string;
+  };
 }) {
   return (
     profile.user.idVerificationStatus === "verified" &&
-    profile.user.accountStatus === "approved"
+    profile.user.accountStatus === "approved" &&
+    !profile.user.deletedAt
   );
 }
 
@@ -36,20 +41,14 @@ export async function GET(
   }
 
   const reviews = await db.getReviewsForWorker(id);
-  const activeBookings = await db.getBookingsForWorker(id);
-
-  const bookedDateRanges = activeBookings
-    .filter(
-      (b) => b.status === "confirmed_exclusive" || b.status === "in_progress",
-    )
-    .map((b) => ({
-      startDate: b.startDate,
-      endDate: b.endDate,
-      bookingRef: b.bookingRef,
-    }));
+  const bookedDateRanges = await db.getWorkerBusyDateRangesAsService(id);
 
   return NextResponse.json({
-    profile: { ...profile, user: publicWorkerUser(profile.user) },
+    profile: {
+      ...profile,
+      bookingPending: bookedDateRanges.some((range) => range.status === "pending"),
+      user: publicWorkerUser(profile.user),
+    },
     reviews,
     bookedDateRanges,
   });

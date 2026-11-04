@@ -157,3 +157,55 @@ export async function PATCH(req: Request) {
     return jsonError(error, "Could not update the account role.");
   }
 }
+
+/** Soft-hide an account while preserving financial and identity history. */
+export async function DELETE(req: Request) {
+  try {
+    const admin = await requireAdminUser(req);
+    const body = await req.json().catch(() => null);
+    const targetUserId =
+      typeof body?.targetUserId === "string" ? body.targetUserId : "";
+    const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
+
+    if (!targetUserId || reason.length < 3 || reason.length > 1000) {
+      return NextResponse.json(
+        { error: "Provide an account and a reason between 3 and 1000 characters." },
+        { status: 400 },
+      );
+    }
+    if (targetUserId === admin.id) {
+      return NextResponse.json(
+        { error: "You cannot hide your own administrator account." },
+        { status: 400 },
+      );
+    }
+
+    const target = await db.getUserByIdAsService(targetUserId);
+    if (!target || target.deletedAt) {
+      return NextResponse.json({ error: "Active account not found." }, { status: 404 });
+    }
+    if (isSuperAdmin(target.role)) {
+      return NextResponse.json(
+        { error: "The main administrator account cannot be hidden." },
+        { status: 403 },
+      );
+    }
+
+    await db.softDeleteAccountAsService({
+      target,
+      actor: admin,
+      reason,
+      action: "admin_deleted",
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `${target.name}'s account is hidden. Existing identity, booking, and payment records are retained.`,
+    });
+  } catch (error: any) {
+    if (String(error?.message).includes("active bookings")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    return jsonError(error, "Could not hide the account.");
+  }
+}

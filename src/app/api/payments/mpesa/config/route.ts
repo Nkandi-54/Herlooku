@@ -21,6 +21,7 @@ export async function GET() {
 
   return NextResponse.json({
     configured: missing.length === 0,
+    paybillNumber: process.env.MPESA_SHORTCODE || "542542",
     environment:
       process.env.MPESA_ENVIRONMENT === "production" ? "production" : "sandbox",
     callbackIsHttps: /^https:\/\//.test(process.env.MPESA_CALLBACK_URL || ""),

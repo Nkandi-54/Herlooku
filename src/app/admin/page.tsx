@@ -40,6 +40,7 @@ import {
   UserCog,
   ShieldPlus,
   ShieldMinus,
+  Trash2,
 } from "lucide-react";
 import {
   User,
@@ -69,6 +70,26 @@ function AdminDashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [emergencies, setEmergencies] = useState<EmergencyAlarm[]>([]);
   const [accounts, setAccounts] = useState<User[]>([]);
+  const [deletionRequests, setDeletionRequests] = useState<
+    {
+      id: string;
+      user: User | null;
+      reason: string;
+      requested_at: string;
+    }[]
+  >([]);
+  const [deletionAudit, setDeletionAudit] = useState<
+    {
+      id: string;
+      target_name: string;
+      target_email: string;
+      actor_name: string;
+      actor_email: string;
+      action: string;
+      reason: string;
+      created_at: string;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter States
@@ -77,6 +98,7 @@ function AdminDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [emergencyFilter, setEmergencyFilter] = useState<string>("all");
   const [roleUpdating, setRoleUpdating] = useState<string | null>(null);
+  const [accountActionLoading, setAccountActionLoading] = useState<string | null>(null);
 
   // Emergency Response State
   const [alarmNotes, setAlarmNotes] = useState<Record<string, string>>({});
@@ -144,6 +166,13 @@ function AdminDashboardPage() {
       if (accRes.ok) {
         const accData = await accRes.json();
         setAccounts(accData.accounts || []);
+      }
+
+      const deletionRes = await fetch("/api/admin/account-deletion-requests");
+      if (deletionRes.ok) {
+        const deletionData = await deletionRes.json();
+        setDeletionRequests(deletionData.requests || []);
+        setDeletionAudit(deletionData.audit || []);
       }
     } catch (e) {
       console.error(e);
@@ -277,6 +306,74 @@ function AdminDashboardPage() {
     }
   };
 
+  const handleHideAccount = async (account: User) => {
+    const reason = window.prompt(
+      `Why should ${account.name}'s account be hidden? This is recorded in the audit history.`,
+    );
+    if (reason === null) return;
+    if (reason.trim().length < 3) {
+      setFeedback({ type: "error", text: "Enter a reason of at least 3 characters." });
+      return;
+    }
+
+    setAccountActionLoading(account.id);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/admin/accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: account.id, reason: reason.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not hide account." });
+      } else {
+        setFeedback({ type: "success", text: data.message });
+        await fetchData();
+      }
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error." });
+    } finally {
+      setAccountActionLoading(null);
+    }
+  };
+
+  const handleDeletionRequest = async (
+    requestId: string,
+    decision: "approve" | "reject",
+    workerName: string,
+  ) => {
+    const reason = window.prompt(
+      `Enter the reason for ${decision === "approve" ? "approving" : "rejecting"} ${workerName}'s request:`,
+    );
+    if (reason === null) return;
+    if (reason.trim().length < 3) {
+      setFeedback({ type: "error", text: "Enter a reason of at least 3 characters." });
+      return;
+    }
+
+    setAccountActionLoading(requestId);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/admin/account-deletion-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, decision, reason: reason.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not resolve request." });
+      } else {
+        setFeedback({ type: "success", text: data.message });
+        await fetchData();
+      }
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error." });
+    } finally {
+      setAccountActionLoading(null);
+    }
+  };
+
   const handleBookingAction = async (
     booking: Booking,
     action: "complete" | "mark_worker_paid",
@@ -357,7 +454,10 @@ function AdminDashboardPage() {
       roleFilter === "all" ||
       (roleFilter === "admin" ? isAdminRole(u.role) : u.role === roleFilter);
     const matchesStatus =
-      statusFilter === "all" || (u.accountStatus || "pending") === statusFilter;
+      statusFilter === "all" ||
+      (statusFilter === "deleted"
+        ? Boolean(u.deletedAt)
+        : !u.deletedAt && (u.accountStatus || "pending") === statusFilter);
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -1390,17 +1490,19 @@ function AdminDashboardPage() {
                 <option value="approved">Approved</option>
                 <option value="suspended">Suspended</option>
                 <option value="rejected">Rejected</option>
+                <option value="deleted">Hidden / deleted</option>
               </select>
             </div>
           </div>
 
           {/* Totals */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {[
               { label: "All Accounts", value: accounts.length, tone: "text-white" },
               { label: "Clients", value: accounts.filter((a) => a.role === "client").length, tone: "text-sky-300" },
               { label: "Domestic Workers", value: accounts.filter((a) => a.role === "worker").length, tone: "text-brand-300" },
               { label: "Administrators", value: adminAccounts.length, tone: "text-purple-300" },
+              { label: "Hidden Accounts", value: accounts.filter((a) => Boolean(a.deletedAt)).length, tone: "text-rose-300" },
             ].map((s) => (
               <div
                 key={s.label}
@@ -1424,6 +1526,92 @@ function AdminDashboardPage() {
             </div>
           )}
 
+          <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-950 p-6">
+            <div>
+              <h3 className="text-sm font-black text-white">Worker Deletion Requests</h3>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Every decision is retained in the audit history. Active bookings and payments must be resolved before approval.
+              </p>
+            </div>
+            {deletionRequests.length === 0 ? (
+              <p className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-xs text-slate-400">
+                No pending worker requests.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {deletionRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-white">
+                        {request.user?.name || "Worker"}{" "}
+                        <span className="font-normal text-slate-400">
+                          {request.user?.email}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-slate-300">{request.reason}</p>
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        Requested {new Date(request.requested_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        disabled={accountActionLoading === request.id}
+                        onClick={() =>
+                          handleDeletionRequest(
+                            request.id,
+                            "approve",
+                            request.user?.name || "worker",
+                          )
+                        }
+                        className="rounded-lg bg-rose-700 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
+                      >
+                        Approve & hide
+                      </button>
+                      <button
+                        type="button"
+                        disabled={accountActionLoading === request.id}
+                        onClick={() =>
+                          handleDeletionRequest(
+                            request.id,
+                            "reject",
+                            request.user?.name || "worker",
+                          )
+                        }
+                        className="rounded-lg border border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-200 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <details className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              <summary className="cursor-pointer text-xs font-bold text-slate-200">
+                Recent deletion audit ({deletionAudit.length})
+              </summary>
+              <div className="mt-3 max-h-80 space-y-2 overflow-auto">
+                {deletionAudit.length === 0 ? (
+                  <p className="text-xs text-slate-500">No deletion actions recorded.</p>
+                ) : (
+                  deletionAudit.map((entry) => (
+                    <div key={entry.id} className="border-t border-slate-800 pt-2 text-[10px] text-slate-400">
+                      <p className="font-bold text-slate-200">
+                        {entry.action.replace(/_/g, " ")} — {entry.target_name} ({entry.target_email})
+                      </p>
+                      <p>By {entry.actor_name} ({entry.actor_email}) · {new Date(entry.created_at).toLocaleString()}</p>
+                      <p>Reason: {entry.reason}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </details>
+          </section>
+
           {/* Accounts Table */}
           <div className="bg-slate-950 rounded-3xl border border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
@@ -1437,7 +1625,7 @@ function AdminDashboardPage() {
                     <th className="px-6 py-4">Verification</th>
                     <th className="px-6 py-4">Account</th>
                     <th className="px-6 py-4">Member Since</th>
-                    <th className="px-6 py-4">Administrator Access</th>
+                    <th className="px-6 py-4">Account Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-slate-300">
@@ -1497,20 +1685,28 @@ function AdminDashboardPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                            (u.accountStatus || "pending") === "approved"
+                            u.deletedAt
+                              ? "bg-rose-950 text-rose-300 border border-rose-800"
+                              : (u.accountStatus || "pending") === "approved"
                               ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
                               : (u.accountStatus || "pending") === "pending"
                               ? "bg-amber-950 text-amber-300 border border-amber-800"
                               : "bg-rose-950 text-rose-300 border border-rose-800"
                           }`}
                         >
-                          {u.accountStatus || "pending"}
+                          {u.deletedAt ? "hidden" : u.accountStatus || "pending"}
                         </span>
+                        {u.deletedAt && (
+                          <span className="mt-1 block max-w-48 text-[10px] text-slate-500">
+                            {new Date(u.deletedAt).toLocaleString()}: {u.deletionReason}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-slate-400">
                         {new Date(u.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
+                        <div className="flex flex-col items-start gap-2">
                         {isSuperAdmin(u.role) ? (
                           <span className="text-[10px] font-bold text-amber-300 inline-flex items-center gap-1.5">
                             <Lock size={12} />
@@ -1546,6 +1742,20 @@ function AdminDashboardPage() {
                             {roleUpdating === u.id ? "Granting…" : "Grant admin"}
                           </button>
                         )}
+                        {!u.deletedAt &&
+                          !isSuperAdmin(u.role) &&
+                          u.id !== currentUser?.id && (
+                            <button
+                              type="button"
+                              disabled={accountActionLoading === u.id}
+                              onClick={() => handleHideAccount(u)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-800 px-3 py-2 text-[10px] font-bold text-rose-300 disabled:opacity-50"
+                            >
+                              <Trash2 size={12} />
+                              {accountActionLoading === u.id ? "Saving..." : "Hide account"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

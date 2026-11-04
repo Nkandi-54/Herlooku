@@ -245,7 +245,8 @@ class Database {
         if (onlyPublic) {
           if (
             user.idVerificationStatus !== "verified" ||
-            user.accountStatus !== "approved"
+            user.accountStatus !== "approved" ||
+            user.deletedAt
           ) {
             return null;
           }
@@ -342,6 +343,47 @@ class Database {
     return (data ?? []).map(mapBooking);
   }
 
+  async getWorkerBusyDateRangesAsService(workerId: string): Promise<
+    { startDate: string; endDate: string; status: "pending" | "booked" }[]
+  > {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("bookings")
+      .select("start_date,end_date,status,reservation_expires_at")
+      .eq("worker_id", workerId)
+      .gte("end_date", new Date().toISOString().slice(0, 10))
+      .in("status", ["pending_payment", "confirmed_exclusive", "in_progress"]);
+
+    if (error) throw new Error(error.message);
+    return (data ?? [])
+      .filter(
+        (row) =>
+          row.status !== "pending_payment" ||
+          (row.reservation_expires_at &&
+            new Date(row.reservation_expires_at).getTime() > Date.now()),
+      )
+      .map((row) => ({
+        startDate: row.start_date,
+        endDate: row.end_date,
+        status: row.status === "pending_payment" ? "pending" : "booked",
+      }));
+  }
+
+  async getWorkersWithPendingBookingsAsService(
+    workerIds: string[],
+  ): Promise<Set<string>> {
+    if (workerIds.length === 0) return new Set();
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("bookings")
+      .select("worker_id,reservation_expires_at")
+      .in("worker_id", workerIds)
+      .eq("status", "pending_payment")
+      .gt("reservation_expires_at", new Date().toISOString());
+    if (error) throw new Error(error.message);
+    return new Set((data ?? []).map((row) => row.worker_id as string));
+  }
+
   async getBookingsForClient(clientId: string): Promise<Booking[]> {
     const { data, error } = await (await this.sb())
       .from("bookings")
@@ -356,16 +398,26 @@ class Database {
     workerId: string,
     startDate: string,
     endDate: string,
+    excludeBookingId?: string,
   ): Promise<boolean> {
-    const { data, error } = await (await this.sb())
+    const sb = createAdminClient();
+    const { data, error } = await sb
       .from("bookings")
-      .select("id,start_date,end_date")
+      .select("id,start_date,end_date,status,reservation_expires_at")
       .eq("worker_id", workerId)
-      .in("status", ["confirmed_exclusive", "in_progress"]);
+      .in("status", ["pending_payment", "confirmed_exclusive", "in_progress"]);
 
     if (error) throw new Error(error.message);
 
     for (const row of data ?? []) {
+      if (row.id === excludeBookingId) continue;
+      if (
+        row.status === "pending_payment" &&
+        (!row.reservation_expires_at ||
+          new Date(row.reservation_expires_at).getTime() <= Date.now())
+      ) {
+        continue;
+      }
       const overlaps = startDate <= row.end_date && endDate >= row.start_date;
       if (overlaps) return false;
     }
@@ -373,6 +425,9 @@ class Database {
   }
 
   async createBooking(booking: Booking): Promise<Booking> {
+    const reservationExpiresAt =
+      booking.reservationExpiresAt ??
+      new Date(Date.now() + 5 * 60_000).toISOString();
     const { data, error } = await (await this.sb())
       .from("bookings")
       .insert({
@@ -389,6 +444,7 @@ class Database {
         worker_expected_monthly_salary: booking.workerExpectedMonthlySalary ?? 0,
         total_amount: booking.totalAmount,
         status: booking.status,
+        reservation_expires_at: reservationExpiresAt,
         escrow_status: booking.escrowStatus,
         client_address: booking.clientAddress,
         special_instructions: booking.specialInstructions ?? null,
@@ -464,6 +520,8 @@ class Database {
       .select("*")
       .eq("booking_id", bookingId)
       .eq("status", "pending")
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (error || !data) return undefined;
     return mapPayment(data);
@@ -593,6 +651,7 @@ class Database {
     await sb
       .from("bookings")
       .update({
+        status: "cancelled",
         payment_status: "failed",
         payment_failure_reason: reason,
         reservation_expires_at: null,
@@ -601,6 +660,39 @@ class Database {
       .neq("status", "confirmed_exclusive");
 
     return mapPayment(data);
+  }
+
+  async expireMpesaPayment(paymentId: string): Promise<void> {
+    const sb = createAdminClient();
+    const { data: payment, error: paymentError } = await sb
+      .from("mpesa_payments")
+      .select("booking_id,status")
+      .eq("id", paymentId)
+      .maybeSingle();
+    if (paymentError) throw new Error(paymentError.message);
+    if (!payment || payment.status !== "pending") return;
+
+    const { error } = await sb
+      .from("mpesa_payments")
+      .update({
+        status: "expired",
+        result_description: "The payment reservation expired before confirmation.",
+      })
+      .eq("id", paymentId)
+      .eq("status", "pending");
+    if (error) throw new Error(error.message);
+
+    const { error: bookingError } = await sb
+      .from("bookings")
+      .update({
+        status: "cancelled",
+        payment_status: "expired",
+        payment_failure_reason: "The payment reservation expired before confirmation.",
+        reservation_expires_at: null,
+      })
+      .eq("id", payment.booking_id)
+      .eq("status", "pending_payment");
+    if (bookingError) throw new Error(bookingError.message);
   }
 
   // ── ID verification ──────────────────────────────────────────────────────
@@ -712,6 +804,105 @@ class Database {
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []).map((row) => mapProfile(row as ProfileRow));
+  }
+
+  async softDeleteAccountAsService(input: {
+    target: User;
+    actor: User;
+    reason: string;
+    action: "admin_deleted" | "request_approved";
+    requestId?: string;
+  }): Promise<void> {
+    const sb = createAdminClient();
+    const { error } = await sb.rpc("hide_account_with_audit", {
+      p_target_user_id: input.target.id,
+      p_actor_user_id: input.actor.id,
+      p_reason: input.reason,
+      p_action: input.action,
+      p_request_id: input.requestId ?? null,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async createAccountDeletionRequest(
+    userId: string,
+    reason: string,
+  ): Promise<void> {
+    const sb = createAdminClient();
+    const { error } = await sb.from("account_deletion_requests").insert({
+      user_id: userId,
+      reason,
+    });
+    if (error?.code === "23505") {
+      throw new Error("ACCOUNT_DELETION_REQUEST_PENDING");
+    }
+    if (error) throw new Error(error.message);
+  }
+
+  async getAccountDeletionRequestsForUser(userId: string) {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("account_deletion_requests")
+      .select("id,reason,status,requested_at,reviewed_at,review_reason")
+      .eq("user_id", userId)
+      .order("requested_at", { ascending: false })
+      .limit(10);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+
+  async getAccountDeletionRequestsAsService() {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("account_deletion_requests")
+      .select("id,user_id,reason,status,requested_at,reviewed_at,reviewed_by,review_reason")
+      .eq("status", "pending")
+      .order("requested_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return Promise.all(
+      (data ?? []).map(async (row) => ({
+        ...row,
+        user: await this.getUserByIdAsService(row.user_id),
+      })),
+    );
+  }
+
+  async getUserByIdAsService(userId: string): Promise<User | null> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapProfile(data as ProfileRow) : null;
+  }
+
+  async resolveAccountDeletionRequestAsService(input: {
+    requestId: string;
+    actor: User;
+    decision: "approve" | "reject";
+    reason: string;
+  }): Promise<void> {
+    const sb = createAdminClient();
+    const { error } = await sb.rpc("review_account_deletion_request", {
+      p_request_id: input.requestId,
+      p_actor_user_id: input.actor.id,
+      p_decision: input.decision,
+      p_reason: input.reason,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async getAccountDeletionAuditAsService() {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("account_deletion_audit")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return data ?? [];
   }
 
   /**

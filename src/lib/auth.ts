@@ -29,6 +29,9 @@ type ProfileRow = {
   verified_at: string | null;
   account_status: "pending" | "approved" | "suspended" | "rejected";
   account_status_reason: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
+  deletion_reason: string | null;
   approved_at: string | null;
   approved_by: string | null;
   last_login_at: string | null;
@@ -58,6 +61,9 @@ export function mapProfile(row: ProfileRow): User {
     verifiedAt: row.verified_at || undefined,
     accountStatus: row.account_status,
     accountStatusReason: row.account_status_reason || undefined,
+    deletedAt: row.deleted_at || undefined,
+    deletedBy: row.deleted_by || undefined,
+    deletionReason: row.deletion_reason || undefined,
     approvedAt: row.approved_at || undefined,
     approvedBy: row.approved_by || undefined,
     lastLoginAt: row.last_login_at || undefined,
@@ -116,7 +122,10 @@ export async function getAuthenticatedUser(
     if (error || !profile) return null;
 
     // A suspended account loses access immediately, even mid-session.
-    if (!isAdminRole(profile.role) && profile.account_status === "suspended") {
+    if (
+      profile.deleted_at ||
+      (!isAdminRole(profile.role) && profile.account_status === "suspended")
+    ) {
       return null;
     }
 

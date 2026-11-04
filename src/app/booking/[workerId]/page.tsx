@@ -24,6 +24,7 @@ import {
   Booking,
   EngagementType,
   hiringFeeUSD,
+  KES_PER_USD,
 } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -63,8 +64,22 @@ function BookingCheckoutPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [pendingBooking, setPendingBooking] = useState<Booking | null>(null);
+  const [paymentDestination, setPaymentDestination] = useState<{
+    paybillNumber: string;
+    configured: boolean;
+  } | null>(null);
+  const [paymentPrompt, setPaymentPrompt] = useState<{
+    amountKes: number;
+    paybillNumber: string;
+    accountReference: string;
+  } | null>(null);
 
   useEffect(() => {
+    fetch("/api/payments/mpesa/config")
+      .then((response) => response.json())
+      .then((data) => setPaymentDestination(data))
+      .catch(console.error);
+
     // 1. Fetch current user
     fetch("/api/auth/me")
       .then((res) => res.json())
@@ -104,7 +119,11 @@ function BookingCheckoutPage() {
         if (data.booking?.paymentStatus === "paid" && data.booking?.status === "confirmed_exclusive") {
           setConfirmedBooking(data.booking);
           setPendingBooking(null);
-        } else if (data.payment?.status === "failed") {
+        } else if (
+          data.payment?.status === "failed" ||
+          data.payment?.status === "expired" ||
+          data.payment?.status === "cancelled"
+        ) {
           setErrorMessage(t(`copy:${data.payment.resultDescription || "M-Pesa payment was not completed. You can try again."}`));
           setPendingBooking(null);
         }
@@ -220,6 +239,11 @@ function BookingCheckoutPage() {
         return;
       }
 
+      setPaymentPrompt({
+        amountKes: payData.amountKes,
+        paybillNumber: payData.paybillNumber,
+        accountReference: payData.accountReference,
+      });
       setPendingBooking(booking);
     } catch (e: any) {
       setErrorMessage(t(`copy:${e.message || "An unexpected error occurred."}`));
@@ -345,6 +369,19 @@ function BookingCheckoutPage() {
           <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-600">
             {tx("Booking Reference")} <strong className="text-slate-900">{pendingBooking.bookingRef}</strong>
           </div>
+          {paymentPrompt && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs text-amber-950">
+              <p>
+                Paybill: <strong>{paymentPrompt.paybillNumber}</strong>
+              </p>
+              <p className="mt-1">
+                Account/reference: <strong>{paymentPrompt.accountReference}</strong>
+              </p>
+              <p className="mt-1">
+                Prompt amount: <strong>KSh {paymentPrompt.amountKes.toLocaleString()}</strong>
+              </p>
+            </div>
+          )}
           <p className="text-[11px] text-slate-500">{tx("Confirm your PIN, then allow a few seconds for the secure provider confirmation.")}</p>
         </div>
       </div>
@@ -511,6 +548,16 @@ function BookingCheckoutPage() {
                 <p className="text-[11px] text-slate-500">
                   {tx("An M-Pesa PIN authorization prompt will be dispatched to your handset.")}
                 </p>
+                <p className="text-[11px] font-semibold text-slate-700">
+                  Paybill: {paymentDestination?.paybillNumber || "542542"} ·
+                  {" "}M-Pesa prompt total: KSh{" "}
+                  {Math.round(totalAmount * KES_PER_USD).toLocaleString()}
+                </p>
+                {paymentDestination && !paymentDestination.configured && (
+                  <p className="text-[11px] font-semibold text-amber-800">
+                    M-Pesa prompts are temporarily unavailable. Please contact support.
+                  </p>
+                )}
             </div>
 
             {false && (
@@ -646,14 +693,16 @@ function BookingCheckoutPage() {
                 !startDate ||
                 !endDate ||
                 !clientAddress ||
-                (currentUser?.idVerificationStatus !== "verified")
+                (currentUser?.idVerificationStatus !== "verified") ||
+                paymentDestination?.configured === false
               }
               className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 ${
                 processing ||
                 !startDate ||
                 !endDate ||
                 !clientAddress ||
-                currentUser?.idVerificationStatus !== "verified"
+                currentUser?.idVerificationStatus !== "verified" ||
+                paymentDestination?.configured === false
                   ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                   : "bg-brand-600 hover:bg-brand-700 text-white shadow-brand-500/25 hover:-translate-y-0.5 active:translate-y-0"
               }`}
@@ -666,7 +715,11 @@ function BookingCheckoutPage() {
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>{t("copy:Send M-Pesa prompt for {amount}", { amount: formatPrice(totalAmount) })}</span>
+                  <span>
+                    {paymentDestination?.configured === false
+                      ? tx("M-Pesa unavailable")
+                      : t("copy:Send M-Pesa prompt for {amount}", { amount: formatPrice(totalAmount) })}
+                  </span>
                 </>
               )}
             </button>

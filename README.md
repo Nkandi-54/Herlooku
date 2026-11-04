@@ -39,6 +39,8 @@ That creates these tables:
 | `worker_profiles` | Public worker directory entries |
 | `bookings` | Exclusive bookings, with a database-level double-booking guard |
 | `mpesa_payments` | Provider payment attempts and confirmed receipts |
+| `account_deletion_requests` | Worker deletion requests and administrator decisions |
+| `account_deletion_audit` | Immutable actor, target, reason and timestamp records |
 | `reviews` | Verified client reviews (rating aggregates maintained by trigger) |
 | `emergencies` | Trust & Safety incident reports |
 
@@ -134,21 +136,29 @@ with the list of missing variables and `GET /api/payments/mpesa/config` reports
    `/api/payments/mpesa/callback`, and register that exact URL in the Daraja
    portal.
 4. Fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`,
-   `MPESA_PASSKEY`, `MPESA_CALLBACK_URL` and `MPESA_ACCOUNT_NUMBER`
-   (01410637946150). Use `MPESA_ENVIRONMENT=sandbox` while testing, then switch
-   to `production`.
+   `MPESA_PASSKEY` and `MPESA_CALLBACK_URL`. Booking references are generated
+   for each transaction and sent as the PayBill account reference. Use
+   `MPESA_ENVIRONMENT=sandbox` while testing, then switch to `production`.
 5. Restart the server. `GET /api/payments/mpesa/config` should report
    `configured: true`.
 
 Once configured the sequence is automatic:
 
-1. Client creates a pending booking.
-2. `POST /api/payments/mpesa/stk` requests the PIN prompt.
+1. Client creates a five-minute pending booking hold.
+2. `POST /api/payments/mpesa/stk` requests a prompt for the exact KES total.
 3. Safaricom calls `/api/payments/mpesa/callback`.
-4. The server matches the checkout request ID and amount, then atomically marks
-   the payment paid and the worker exclusive.
+4. The server matches the checkout request ID and amount, then marks the
+   payment paid and the worker exclusive; database constraints prevent
+   overlapping pending holds and confirmed bookings.
 
 The browser cannot verify a payment, submit a Till code, or lock a worker.
+The directory shows active holds as `PENDING`; confirmed date ranges remain
+unavailable on worker calendars.
+
+Administrators can hide accounts without erasing their ID/selfie files or
+booking and payment history. Worker deletion requests and admin decisions are
+recorded in the immutable deletion audit. Apply all new SQL changes with
+`supabase db push` before deploying the matching application code.
 
 ## Production checklist
 

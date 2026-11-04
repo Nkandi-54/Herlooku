@@ -43,7 +43,11 @@ export default function WorkerDetailPage() {
   const [workerData, setWorkerData] = useState<{
     profile: WorkerProfile & { user: User };
     reviews: Review[];
-    bookedDateRanges: { startDate: string; endDate: string; bookingRef: string }[];
+    bookedDateRanges: {
+      startDate: string;
+      endDate: string;
+      status: "pending" | "booked";
+    }[];
   } | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +94,20 @@ export default function WorkerDetailPage() {
         .catch(console.error)
         .finally(() => setLoading(false));
     }
+  }, [workerId]);
+
+  useEffect(() => {
+    if (!workerId) return;
+    const refresh = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/workers/${workerId}`);
+        const data = await response.json();
+        if (response.ok && data.profile) setWorkerData(data);
+      } catch (error) {
+        console.error(error);
+      }
+    }, 15_000);
+    return () => window.clearInterval(refresh);
   }, [workerId]);
 
   if (loading) {
@@ -237,6 +255,11 @@ export default function WorkerDetailPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-2xl font-black text-slate-900">{profile.user.name}</h1>
+                    {profile.bookingPending && (
+                      <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-900">
+                        PENDING
+                      </span>
+                    )}
                     <VerificationBadge status={profile.user.idVerificationStatus} />
                   </div>
                   <p className="text-sm font-semibold text-brand-700">{profile.headline}</p>
@@ -373,22 +396,35 @@ export default function WorkerDetailPage() {
             {bookedDateRanges.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-xs text-slate-600">
-                  {tx("The following dates are currently exclusively locked for other households:")}
+                  {tx("Unavailable dates are locked after payment, while pending dates are held temporarily:")}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                   {bookedDateRanges.map((b, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium"
+                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-medium ${
+                        b.status === "pending"
+                          ? "bg-amber-50 border-amber-200 text-amber-900"
+                          : "bg-rose-50 border-rose-200 text-rose-800"
+                      }`}
                     >
                       <span className="flex items-center gap-2">
-                        <Calendar size={14} className="text-rose-500" />
+                        <Calendar
+                          size={14}
+                          className={b.status === "pending" ? "text-amber-600" : "text-rose-500"}
+                        />
                         <span>
                           {b.startDate} to {b.endDate}
                         </span>
                       </span>
-                      <span className="text-[10px] bg-rose-200/80 px-2 py-0.5 rounded-full font-bold uppercase">
-                        {tx("Locked")}
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          b.status === "pending"
+                            ? "bg-amber-200/80"
+                            : "bg-rose-200/80"
+                        }`}
+                      >
+                        {b.status === "pending" ? "PENDING" : tx("Locked")}
                       </span>
                     </div>
                   ))}

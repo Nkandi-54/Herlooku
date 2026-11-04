@@ -10,8 +10,6 @@ type MpesaConfig = {
   passkey: string;
   callbackUrl: string;
   transactionType: "CustomerPayBillOnline" | "CustomerBuyGoodsOnline";
-  /** The PayBill/Till account number the customer's payment is credited to. */
-  businessAccountNumber: string;
 };
 
 export class MpesaConfigurationError extends Error {}
@@ -23,8 +21,6 @@ function config(): MpesaConfig {
   const passkey = process.env.MPESA_PASSKEY;
   const callbackUrl = process.env.MPESA_CALLBACK_URL;
   const transactionType = (process.env.MPESA_TRANSACTION_TYPE || "CustomerPayBillOnline") as MpesaConfig["transactionType"];
-  const businessAccountNumber = process.env.MPESA_ACCOUNT_NUMBER || shortcode || "";
-
   if (!consumerKey || !consumerSecret || !shortcode || !passkey || !callbackUrl) {
     throw new MpesaConfigurationError(
       "M-Pesa is not configured. Set MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_SHORTCODE, MPESA_PASSKEY and MPESA_CALLBACK_URL."
@@ -36,7 +32,7 @@ function config(): MpesaConfig {
   if (!["CustomerPayBillOnline", "CustomerBuyGoodsOnline"].includes(transactionType)) {
     throw new MpesaConfigurationError("MPESA_TRANSACTION_TYPE must be CustomerPayBillOnline or CustomerBuyGoodsOnline.");
   }
-  return { consumerKey, consumerSecret, shortcode, passkey, callbackUrl, transactionType, businessAccountNumber };
+  return { consumerKey, consumerSecret, shortcode, passkey, callbackUrl, transactionType };
 }
 
 function baseUrl() {
