@@ -118,7 +118,7 @@ export interface WorkerProfile {
   userId: string;
   headline: string;
   bio: string;
-  services: string[]; // e.g. ["Housekeeping", "Cooking", "Childcare", "Elderly Care", "Deep Cleaning", "Laundry"]
+  services: string[]; // Household services and repair specialties such as Plumbing or Appliance Repair
   hireFee: number; // Lowest applicable hiring fee, used by directory filters
   engagementTypes: EngagementType[]; // Which engagements the worker offers: daily (1–2 day jobs), monthly, or both
   expectedDailySalary: number; // Stated daily pay for daily/short-term jobs at end of day (in USD base)

@@ -28,6 +28,17 @@ const ALL_SERVICES = [
   "Laundry",
   "Organization",
   "Yard Care",
+  "Refrigerator Repair",
+  "Microwave Repair",
+  "Appliance Repair",
+  "Mechanical Repairs",
+  "Automotive Repair",
+  "Plumbing",
+  "Electrical Repairs",
+  "Carpentry",
+  "Painting",
+  "Air Conditioning Repair",
+  "General Repairs",
 ];
 
 export default function WorkerProfilePage() {
@@ -399,7 +410,7 @@ export default function WorkerProfilePage() {
                   onChange={() => handleToggleService(svc)}
                   className="rounded text-brand-600 focus:ring-brand-500 h-3.5 w-3.5"
                 />
-                <span>{tx(svc)}</span>
+                <span>{t(`copy:${svc}`)}</span>
               </label>
             ))}
           </div>

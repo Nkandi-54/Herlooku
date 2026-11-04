@@ -71,6 +71,17 @@ function WorkersDirectoryContent() {
     "Laundry",
     "Organization",
     "Yard Care",
+    "Refrigerator Repair",
+    "Microwave Repair",
+    "Appliance Repair",
+    "Mechanical Repairs",
+    "Automotive Repair",
+    "Plumbing",
+    "Electrical Repairs",
+    "Carpentry",
+    "Painting",
+    "Air Conditioning Repair",
+    "General Repairs",
   ];
   const serviceLabel = (service: string) =>
     ({
@@ -83,6 +94,17 @@ function WorkersDirectoryContent() {
       Laundry: tx("Laundry & Ironing"),
       Organization: tx("Organization"),
       "Yard Care": tx("Yard & Maintenance"),
+      "Refrigerator Repair": tx("Refrigerator Repair"),
+      "Microwave Repair": tx("Microwave Repair"),
+      "Appliance Repair": tx("Appliance Repair"),
+      "Mechanical Repairs": tx("Mechanical Repairs"),
+      "Automotive Repair": tx("Automotive Repair"),
+      Plumbing: tx("Plumbing"),
+      "Electrical Repairs": tx("Electrical Repairs"),
+      Carpentry: tx("Carpentry"),
+      Painting: tx("Painting"),
+      "Air Conditioning Repair": tx("Air Conditioning Repair"),
+      "General Repairs": tx("General Repairs"),
     })[service] || service;
 
   const fetchProfiles = useCallback(async (background = false) => {

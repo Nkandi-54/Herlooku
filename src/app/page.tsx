@@ -21,6 +21,15 @@ import {
   HeartPulse,
   Shirt,
   Wrench,
+  Refrigerator,
+  Microwave,
+  Cog,
+  CarFront,
+  Droplets,
+  Zap,
+  Hammer,
+  Paintbrush,
+  Wind,
   Quote,
   Plus,
   Minus,
@@ -81,6 +90,72 @@ const CATEGORIES = [
     value: "Yard Care",
     icon: Wrench,
     blurb: "Outdoor upkeep",
+  },
+  {
+    label: "Refrigerator Repair",
+    value: "Refrigerator Repair",
+    icon: Refrigerator,
+    blurb: "Fridge troubleshooting & repair",
+  },
+  {
+    label: "Microwave Repair",
+    value: "Microwave Repair",
+    icon: Microwave,
+    blurb: "Microwave diagnostics & repair",
+  },
+  {
+    label: "Appliance Repair",
+    value: "Appliance Repair",
+    icon: Wrench,
+    blurb: "Repair other household appliances",
+  },
+  {
+    label: "Mechanical Repairs",
+    value: "Mechanical Repairs",
+    icon: Cog,
+    blurb: "Mechanical maintenance & repairs",
+  },
+  {
+    label: "Automotive Repair",
+    value: "Automotive Repair",
+    icon: CarFront,
+    blurb: "Vehicle maintenance & repairs",
+  },
+  {
+    label: "Plumbing",
+    value: "Plumbing",
+    icon: Droplets,
+    blurb: "Pipes, taps & water systems",
+  },
+  {
+    label: "Electrical Repairs",
+    value: "Electrical Repairs",
+    icon: Zap,
+    blurb: "Electrical troubleshooting & repair",
+  },
+  {
+    label: "Carpentry",
+    value: "Carpentry",
+    icon: Hammer,
+    blurb: "Furniture, doors & woodwork",
+  },
+  {
+    label: "Painting",
+    value: "Painting",
+    icon: Paintbrush,
+    blurb: "Interior & exterior painting",
+  },
+  {
+    label: "Air Conditioning Repair",
+    value: "Air Conditioning Repair",
+    icon: Wind,
+    blurb: "AC servicing & repair",
+  },
+  {
+    label: "General Repairs",
+    value: "General Repairs",
+    icon: Wrench,
+    blurb: "Handyman help around the home",
   },
 ];
 
@@ -252,6 +327,17 @@ export default function HomePage() {
                     <option value="Deep Cleaning">{tx("Deep Cleaning")}</option>
                     <option value="Elderly Care">{tx("Elderly Companion")}</option>
                     <option value="Laundry">{tx("Laundry & Ironing")}</option>
+                    <option value="Refrigerator Repair">{tx("Refrigerator Repair")}</option>
+                    <option value="Microwave Repair">{tx("Microwave Repair")}</option>
+                    <option value="Appliance Repair">{tx("Appliance Repair")}</option>
+                    <option value="Mechanical Repairs">{tx("Mechanical Repairs")}</option>
+                    <option value="Automotive Repair">{tx("Automotive Repair")}</option>
+                    <option value="Plumbing">{tx("Plumbing")}</option>
+                    <option value="Electrical Repairs">{tx("Electrical Repairs")}</option>
+                    <option value="Carpentry">{tx("Carpentry")}</option>
+                    <option value="Painting">{tx("Painting")}</option>
+                    <option value="Air Conditioning Repair">{tx("Air Conditioning Repair")}</option>
+                    <option value="General Repairs">{tx("General Repairs")}</option>
                   </select>
                 </div>
 
@@ -448,7 +534,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3.5">
           {CATEGORIES.map((c) => {
             const Icon = c.icon;
             return (
