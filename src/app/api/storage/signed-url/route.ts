@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/storage/signed-url?path=<storage path>
  *
- * Returns a short-lived signed URL for a private identity document. Only the
- * document owner or an administrator may request one. This is how the review
- * workbench displays ID scans without ever making the bucket public.
+ * Returns a short-lived signed URL for a private identity document. Only an
+ * administrator may request one. This is how the review workbench displays
+ * ID scans without ever making the bucket public.
  */
 export async function GET(req: Request) {
   try {
@@ -25,7 +25,11 @@ export async function GET(req: Request) {
 
     // The path is always "<ownerUid>/<file>". Admins may sign any; this guards
     // against signing unrelated buckets by accident.
-    if (!path.includes("/") || path.startsWith("..")) {
+    const pathSegments = path.split("/");
+    if (
+      pathSegments.length !== 2 ||
+      pathSegments.some((segment) => !segment || segment === "." || segment === "..")
+    ) {
       return NextResponse.json(
         { error: "Invalid storage path." },
         { status: 400 },

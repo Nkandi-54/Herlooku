@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Maximize2,
   ChevronLeft,
   LayoutDashboard,
   Search,
@@ -15,6 +14,7 @@ import {
 import { User } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
+import { PrivateDocumentImage } from "@/components/PrivateDocumentImage";
 import { useCurrency } from "@/context/CurrencyContext";
 
 export default function AdminVerificationsPage() {
@@ -295,25 +295,34 @@ export default function AdminVerificationsPage() {
                     <span className="text-[11px] font-bold text-slate-300 block mb-1">
                       Government ID Photo
                     </span>
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black">
-                      <img
-                        src={user.idDocumentUrl}
-                        alt="Government ID"
-                        className="w-full h-32 object-cover transition-transform group-hover:scale-105"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setZoomImage({
-                            url: user.idDocumentUrl!,
-                            title: `${user.name} - Government ID`,
-                          })
-                        }
-                        className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Maximize2 size={14} />
-                      </button>
-                    </div>
+                    <PrivateDocumentImage
+                      path={user.idDocumentUrl}
+                      alt="Government ID"
+                      onZoom={(url) =>
+                        setZoomImage({
+                          url,
+                          title: `${user.name} - Government ID`,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+
+                {user.idDocumentBackUrl && (
+                  <div className="group relative">
+                    <span className="text-[11px] font-bold text-slate-300 block mb-1">
+                      Back of Government ID
+                    </span>
+                    <PrivateDocumentImage
+                      path={user.idDocumentBackUrl}
+                      alt="Back of Government ID"
+                      onZoom={(url) =>
+                        setZoomImage({
+                          url,
+                          title: `${user.name} - Back of Government ID`,
+                        })
+                      }
+                    />
                   </div>
                 )}
 
@@ -322,25 +331,16 @@ export default function AdminVerificationsPage() {
                     <span className="text-[11px] font-bold text-slate-300 block mb-1">
                       Facial Match Selfie
                     </span>
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black">
-                      <img
-                        src={user.selfieUrl}
-                        alt="Selfie"
-                        className="w-full h-32 object-cover transition-transform group-hover:scale-105"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setZoomImage({
-                            url: user.selfieUrl!,
-                            title: `${user.name} - Facial Match Selfie`,
-                          })
-                        }
-                        className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Maximize2 size={14} />
-                      </button>
-                    </div>
+                    <PrivateDocumentImage
+                      path={user.selfieUrl}
+                      alt="Selfie"
+                      onZoom={(url) =>
+                        setZoomImage({
+                          url,
+                          title: `${user.name} - Facial Match Selfie`,
+                        })
+                      }
+                    />
                   </div>
                 )}
               </div>
