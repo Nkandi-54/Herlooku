@@ -163,6 +163,8 @@ export interface Booking {
   paymentMethod?: string;
   paymentTransactionRef?: string;
   paymentStatus?: PaymentStatus;
+  /** True when an administrator confirmed the assignment without collecting payment. */
+  manualAssignment?: boolean;
   paymentRequestId?: string;
   paymentFailureReason?: string;
   reservationExpiresAt?: string;

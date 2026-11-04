@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -86,8 +87,8 @@ function BookingCheckoutPage() {
       .then((data) => {
         if (data.activeUser) {
           setCurrentUser(data.activeUser);
-          if (!clientAddress && data.activeUser.location) {
-            setClientAddress(data.activeUser.location);
+          if (data.activeUser.location) {
+            setClientAddress((current) => current || data.activeUser.location);
           }
         }
       })
@@ -100,8 +101,8 @@ function BookingCheckoutPage() {
         .then((data) => {
           if (data.profile) {
             setWorkerData(data.profile);
-            if (!serviceName && data.profile.services?.length > 0) {
-              setServiceName(data.profile.services[0]);
+            if (data.profile.services?.length > 0) {
+              setServiceName((current) => current || data.profile.services[0]);
             }
           }
         })
@@ -614,9 +615,12 @@ function BookingCheckoutPage() {
 
             {/* Worker mini preview */}
             <div className="flex items-center gap-3">
-              <img
+              <Image
                 src={workerData.user.avatar}
                 alt={workerData.user.name}
+                width={48}
+                height={48}
+                unoptimized
                 className="w-12 h-12 rounded-xl object-cover border border-slate-200"
               />
               <div>

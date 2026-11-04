@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import Image from "next/image";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Camera, Loader2, Trash2, UserRound, CheckCircle2 } from "lucide-react";
 
@@ -93,9 +94,11 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         style={{ width: size, height: size, boxShadow: "0 0 0 4px rgba(14,165,233,0.15)" }}
       >
         {value ? (
-          <img
+          <Image
             src={value}
             alt={name}
+            fill
+            unoptimized
             className="w-full h-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";

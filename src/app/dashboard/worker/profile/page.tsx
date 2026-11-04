@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   User as UserIcon,
   MapPin,
@@ -64,7 +64,7 @@ export default function WorkerProfilePage() {
   const [liveInAvailable, setLiveInAvailable] = useState<boolean>(false);
   const [avatar, setAvatar] = useState<string>("");
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch("/api/profile");
       if (res.ok) {
@@ -97,11 +97,11 @@ export default function WorkerProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [exchangeRate]);
 
   useEffect(() => {
     fetchProfile();
-  }, [exchangeRate]);
+  }, [fetchProfile]);
 
   /** Instantly persist avatar changes (upload/remove) without waiting for form save. */
   const persistAvatar = async (url: string) => {

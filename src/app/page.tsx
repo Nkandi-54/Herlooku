@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -783,9 +784,12 @@ export default function HomePage() {
                 &ldquo;{tx(t.quote)}&rdquo;
               </blockquote>
               <figcaption className="flex items-center gap-3 pt-4 border-t border-slate-100">
-                <img
+                <Image
                   src={t.avatar}
                   alt={t.name}
+                  width={40}
+                  height={40}
+                  unoptimized
                   className="w-10 h-10 rounded-full object-cover border border-slate-200"
                 />
                 <div>

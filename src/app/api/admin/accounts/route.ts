@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, publicUser, requireAdminUser } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminRole, isSuperAdmin, type UserRole } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,88 @@ export async function GET(req: Request) {
     });
   } catch (error: any) {
     return jsonError(error, "Could not load accounts.");
+  }
+}
+
+/** Create a worker login through Supabase Auth; the signup trigger creates its profile. */
+export async function POST(req: Request) {
+  try {
+    await requireAdminUser(req);
+    let body: Record<string, unknown>;
+    try {
+      const parsed: unknown = await req.json();
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return NextResponse.json({ error: "Provide valid worker details." }, { status: 400 });
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: "Provide valid JSON." }, { status: 400 });
+    }
+
+    const { name, email, password, phone, location } = body;
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      name.trim().length > 120 ||
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      password.length < 8 ||
+      password.length > 128 ||
+      typeof phone !== "string" ||
+      !phone.trim()
+    ) {
+      return NextResponse.json({ error: "Provide a name, valid email, phone number, and password of at least 8 characters." }, { status: 400 });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+    }
+    const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+    if (!/^(\+?254|0)[17]\d{8}$/.test(normalizedPhone)) {
+      return NextResponse.json({ error: "Enter a valid Kenyan phone number." }, { status: 400 });
+    }
+    const normalizedLocation =
+      typeof location === "string" && location.trim()
+        ? location.trim().slice(0, 120)
+        : "Kenya";
+
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: normalizedEmail,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name: name.trim(),
+        role: "worker",
+        phone: normalizedPhone,
+        location: normalizedLocation,
+      },
+    });
+    if (error) {
+      const duplicate = /already|registered|exists/i.test(error.message);
+      return NextResponse.json(
+        { error: duplicate ? "An account with this email address already exists." : "Could not create the worker account." },
+        { status: duplicate ? 409 : 400 },
+      );
+    }
+    if (!data.user) {
+      return NextResponse.json({ error: "Worker account creation failed." }, { status: 500 });
+    }
+
+    const account = await db.getUserByIdAsService(data.user.id);
+    if (!account || account.role !== "worker") {
+      console.error("Worker account created without its expected profile.", data.user.id);
+      return NextResponse.json({ error: "The account was created, but its worker profile could not be loaded. Contact support." }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `${account.name}'s worker account was created and is awaiting account review and ID verification.`,
+      account: stripPrivateFields(publicUser(account)),
+    }, { status: 201 });
+  } catch (error: any) {
+    return jsonError(error, "Could not create the worker account.");
   }
 }
 

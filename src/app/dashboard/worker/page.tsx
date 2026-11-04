@@ -294,7 +294,9 @@ export default function WorkerDashboardPage() {
                     </span>
                   </div>
                   <p className="text-[10px] text-sky-700 leading-tight">
-                    {bkg.engagementType === "daily"
+                    {bkg.manualAssignment
+                      ? tx("Your employer will arrange payment directly; Herlooku is not holding wages for this assignment.")
+                      : bkg.engagementType === "daily"
                       ? tx("Herlooku pays your held wages after the task is completed.")
                       : tx("Your employer pays your monthly salary directly to you.")}
                   </p>

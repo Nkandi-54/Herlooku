@@ -336,14 +336,20 @@ export default function ClientDashboardPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">{tx("Platform Placement Fee:")}</span>
-                      <span className="font-bold text-brand-700">{formatPrice(bkg.platformBookingFee || hiringFeeUSD(bkg.engagementType))}</span>
+                      <span className="font-bold text-brand-700">
+                        {bkg.paymentMethod === "admin_manual"
+                          ? tx("Not collected")
+                          : formatPrice(bkg.platformBookingFee || hiringFeeUSD(bkg.engagementType))}
+                      </span>
                     </div>
                   </div>
 
                   <div className="p-3 bg-amber-100/70 rounded-xl text-[11px] text-amber-900 space-y-1">
                     <p className="font-bold">{tx("Instructions to dispatch helper:")}</p>
                     <p>
-                      {bkg.engagementType === "daily"
+                      {bkg.paymentMethod === "admin_manual"
+                        ? tx("This assignment was confirmed by an administrator. No fee or wages were collected by Herlooku; agree payment directly with the worker.")
+                        : bkg.engagementType === "daily"
                         ? "Daily wages are paid to Herlooku at booking and paid out to the worker after task completion."
                         : "Pay the monthly worker directly; the M-Pesa hiring fee is paid to Herlooku."}
                     </p>
@@ -437,10 +443,14 @@ export default function ClientDashboardPage() {
                     <div>
                       <span className="text-slate-400 block font-medium">{tx("Platform Hiring Fee")}</span>
                       <span className="font-bold text-brand-700">
-                        {formatPrice(bkg.platformBookingFee || hiringFeeUSD(bkg.engagementType))}
+                        {bkg.paymentMethod === "admin_manual"
+                          ? tx("Not collected")
+                          : formatPrice(bkg.platformBookingFee || hiringFeeUSD(bkg.engagementType))}
                       </span>
                       <span className="text-[10px] text-emerald-700 font-semibold block">
-                        Paid to Web Owner
+                        {bkg.paymentMethod === "admin_manual"
+                          ? tx("Manual assignment")
+                          : "Paid to Web Owner"}
                       </span>
                     </div>
                   </div>
@@ -460,7 +470,9 @@ export default function ClientDashboardPage() {
                       </span>
                     </div>
                     <p className="text-[10px] text-sky-700 leading-tight">
-                      {bkg.engagementType === "daily"
+                      {bkg.paymentMethod === "admin_manual"
+                        ? tx("Wages were not collected by Herlooku; arrange payment directly with the worker.")
+                        : bkg.engagementType === "daily"
                         ? "Daily wages are collected by Herlooku and paid to the worker after the task is completed."
                         : "Pay the worker’s monthly salary directly to them."}
                     </p>

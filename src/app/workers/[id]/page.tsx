@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -460,9 +461,12 @@ export default function WorkerDetailPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <img
+                        <Image
                           src={rev.clientAvatar}
                           alt={rev.clientName}
+                          width={32}
+                          height={32}
+                          unoptimized
                           className="w-8 h-8 rounded-full object-cover border border-slate-200"
                         />
                         <div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -442,9 +443,12 @@ export default function AdminVerificationsPage() {
               </button>
             </div>
             <div className="rounded-2xl overflow-hidden border border-slate-800 max-h-[70vh] flex items-center justify-center bg-black">
-              <img
+              <Image
                 src={zoomImage.url}
                 alt={zoomImage.title}
+                width={1200}
+                height={800}
+                unoptimized
                 className="w-full h-auto max-h-[70vh] object-contain"
               />
             </div>

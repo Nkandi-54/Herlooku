@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 function sanitizeBookingForWorker(booking: Booking) {
   const stripped = { ...booking };
+  stripped.manualAssignment = booking.paymentMethod === "admin_manual";
   const blacklistedKeys: (keyof Booking | string)[] = [
     "platformBookingFee",
     "platformFee",

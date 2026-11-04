@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -104,6 +105,24 @@ function AdminDashboardPage() {
   const [alarmNotes, setAlarmNotes] = useState<Record<string, string>>({});
   const [alarmUpdating, setAlarmUpdating] = useState<string | null>(null);
   const [bookingUpdating, setBookingUpdating] = useState<string | null>(null);
+  const [workerCreating, setWorkerCreating] = useState(false);
+  const [workerForm, setWorkerForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    location: "",
+  });
+  const [manualAssignmentLoading, setManualAssignmentLoading] = useState(false);
+  const [manualAssignment, setManualAssignment] = useState({
+    clientId: "",
+    workerId: "",
+    startDate: "",
+    endDate: "",
+    serviceName: "General Househelp",
+    clientAddress: "",
+    specialInstructions: "",
+  });
 
   // Verification Review State
   const [inspectUser, setInspectUser] = useState<User | null>(null);
@@ -419,6 +438,74 @@ function AdminDashboardPage() {
     }
   };
 
+  const handleCreateWorker = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setWorkerCreating(true);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/admin/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(workerForm),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not create worker account." });
+        return;
+      }
+      setFeedback({ type: "success", text: data.message });
+      setWorkerForm({ name: "", email: "", password: "", phone: "", location: "" });
+      await fetchData();
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error." });
+    } finally {
+      setWorkerCreating(false);
+    }
+  };
+
+  const handleManualAssignment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const client = accounts.find((account) => account.id === manualAssignment.clientId);
+    const worker = accounts.find((account) => account.id === manualAssignment.workerId);
+    if (
+      !client ||
+      !worker ||
+      !window.confirm(
+        `Confirm assigning ${worker.name} to ${client.name} from ${manualAssignment.startDate} through ${manualAssignment.endDate}? No payment will be recorded; wages are arranged directly.`,
+      )
+    ) {
+      return;
+    }
+
+    setManualAssignmentLoading(true);
+    setFeedback(null);
+    try {
+      const response = await fetch("/api/admin/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(manualAssignment),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not assign worker." });
+        return;
+      }
+      setFeedback({ type: "success", text: data.message });
+      setManualAssignment((current) => ({
+        ...current,
+        startDate: "",
+        endDate: "",
+        clientAddress: "",
+        specialInstructions: "",
+      }));
+      await fetchData();
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error." });
+    } finally {
+      setManualAssignmentLoading(false);
+    }
+  };
+
   // Metrics Calculations
   const activeEmergencies = emergencies.filter(
     (e) => e.status === "active" || e.status === "responding"
@@ -426,7 +513,13 @@ function AdminDashboardPage() {
   const resolvedEmergencies = emergencies.filter((e) => e.status === "resolved");
 
   const totalPlatformFees = bookings
-    .filter((b) => b.status === "confirmed_exclusive" || b.status === "in_progress" || b.status === "completed")
+    .filter(
+      (b) =>
+        b.paymentStatus === "paid" &&
+        (b.status === "confirmed_exclusive" ||
+          b.status === "in_progress" ||
+          b.status === "completed"),
+    )
     .reduce((sum, b) => sum + (b.platformBookingFee || hiringFeeUSD(b.engagementType)), 0);
 
   const activeLocks = bookings.filter(
@@ -462,6 +555,20 @@ function AdminDashboardPage() {
   });
 
   const adminAccounts = accounts.filter((u) => isAdminRole(u.role));
+  const assignableClients = accounts.filter(
+    (u) =>
+      u.role === "client" &&
+      !u.deletedAt &&
+      u.accountStatus === "approved" &&
+      u.idVerificationStatus === "verified",
+  );
+  const assignableWorkers = accounts.filter(
+    (u) =>
+      u.role === "worker" &&
+      !u.deletedAt &&
+      u.accountStatus === "approved" &&
+      u.idVerificationStatus === "verified",
+  );
   const viewerIsSuperAdmin = isSuperAdmin(currentUser?.role);
 
   return (
@@ -1327,6 +1434,133 @@ function AdminDashboardPage() {
             </div>
           </div>
 
+          <form
+            onSubmit={handleManualAssignment}
+            className="space-y-4 rounded-3xl border border-sky-900/70 bg-slate-950 p-6 shadow-xl"
+          >
+            <div>
+              <h3 className="text-sm font-black text-white">Manually assign a worker</h3>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Select an approved, ID-verified client and worker, then confirm the service dates. This confirms the booking without collecting platform fees or wages; the client and worker arrange pay directly.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Client
+                <select
+                  required
+                  value={manualAssignment.clientId}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({ ...current, clientId: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                >
+                  <option value="">Select a client</option>
+                  {assignableClients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name} · {client.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Worker
+                <select
+                  required
+                  value={manualAssignment.workerId}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({ ...current, workerId: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                >
+                  <option value="">Select a worker</option>
+                  {assignableWorkers.map((worker) => (
+                    <option key={worker.id} value={worker.id}>
+                      {worker.name} · {worker.location}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Service
+                <input
+                  required
+                  maxLength={120}
+                  value={manualAssignment.serviceName}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({ ...current, serviceName: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Start date
+                <input
+                  type="date"
+                  required
+                  value={manualAssignment.startDate}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({ ...current, startDate: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                End date
+                <input
+                  type="date"
+                  required
+                  min={manualAssignment.startDate || undefined}
+                  value={manualAssignment.endDate}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({ ...current, endDate: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300 sm:col-span-2 lg:col-span-1">
+                Service address
+                <input
+                  required
+                  minLength={8}
+                  maxLength={240}
+                  value={manualAssignment.clientAddress}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({ ...current, clientAddress: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300 sm:col-span-2 lg:col-span-3">
+                Instructions (optional)
+                <textarea
+                  maxLength={2000}
+                  rows={2}
+                  value={manualAssignment.specialInstructions}
+                  onChange={(event) =>
+                    setManualAssignment((current) => ({
+                      ...current,
+                      specialInstructions: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+            </div>
+            <button
+              type="submit"
+              disabled={manualAssignmentLoading || assignableClients.length === 0 || assignableWorkers.length === 0}
+              className="rounded-xl bg-sky-700 px-5 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {manualAssignmentLoading ? "Assigning..." : "Review & confirm assignment"}
+            </button>
+            {(assignableClients.length === 0 || assignableWorkers.length === 0) && (
+              <p className="text-[11px] text-amber-300">
+                Eligible clients and workers must have approved accounts and verified IDs.
+              </p>
+            )}
+          </form>
+
           <div className="bg-slate-950 rounded-3xl border border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -1364,18 +1598,28 @@ function AdminDashboardPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-black text-emerald-400 text-sm block">
-                          {formatPrice(b.platformBookingFee || hiringFeeUSD(b.engagementType))}
+                          {b.paymentMethod === "admin_manual"
+                            ? "Not collected"
+                            : formatPrice(b.platformBookingFee || hiringFeeUSD(b.engagementType))}
                         </span>
-                        <span className="text-[10px] text-slate-500">one-time web owner fee</span>
+                        <span className="text-[10px] text-slate-500">
+                          {b.paymentMethod === "admin_manual"
+                            ? "manual assignment"
+                            : "one-time web owner fee"}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-bold text-sky-300 block">
-                          {b.engagementType === "daily"
+                          {b.paymentMethod === "admin_manual"
+                            ? "Direct agreement"
+                            : b.engagementType === "daily"
                             ? `${formatPrice(b.workerExpectedDailySalary * b.totalDays)} held`
                             : `${formatPrice(b.workerExpectedMonthlySalary || 0)}/month`}
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          {b.engagementType === "daily"
+                          {b.paymentMethod === "admin_manual"
+                            ? "wages not collected by Herlooku"
+                            : b.engagementType === "daily"
                             ? b.escrowStatus === "released"
                               ? "paid by Herlooku"
                               : b.status === "completed"
@@ -1409,7 +1653,8 @@ function AdminDashboardPage() {
                               {bookingUpdating === b.id ? "Saving..." : "Mark task complete"}
                             </button>
                           )}
-                        {b.engagementType === "daily" &&
+                        {b.paymentMethod !== "admin_manual" &&
+                          b.engagementType === "daily" &&
                           b.status === "completed" &&
                           b.escrowStatus === "holding" && (
                             <button
@@ -1422,9 +1667,16 @@ function AdminDashboardPage() {
                             </button>
                           )}
                         {b.engagementType === "daily" &&
+                          b.paymentMethod !== "admin_manual" &&
                           b.escrowStatus === "released" && (
                             <span className="text-[10px] font-bold text-emerald-400">
                               Payout sent
+                            </span>
+                          )}
+                        {b.paymentMethod === "admin_manual" &&
+                          b.status === "completed" && (
+                            <span className="text-[10px] font-bold text-slate-400">
+                              Wages arranged directly
                             </span>
                           )}
                       </td>
@@ -1494,6 +1746,90 @@ function AdminDashboardPage() {
               </select>
             </div>
           </div>
+
+          <form
+            onSubmit={handleCreateWorker}
+            className="space-y-4 rounded-3xl border border-sky-900/70 bg-slate-950 p-6 shadow-xl"
+          >
+            <div>
+              <h3 className="text-sm font-black text-white">Create a worker account</h3>
+              <p className="mt-1 text-[11px] text-slate-400">
+                The worker can sign in with the password you set. Their account remains pending review and they must complete ID verification before they can be assigned.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Full name
+                <input
+                  required
+                  maxLength={120}
+                  value={workerForm.name}
+                  onChange={(event) =>
+                    setWorkerForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Email
+                <input
+                  type="email"
+                  required
+                  maxLength={254}
+                  value={workerForm.email}
+                  onChange={(event) =>
+                    setWorkerForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Phone
+                <input
+                  type="tel"
+                  required
+                  value={workerForm.phone}
+                  onChange={(event) =>
+                    setWorkerForm((current) => ({ ...current, phone: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Initial password
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  value={workerForm.password}
+                  onChange={(event) =>
+                    setWorkerForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Location (optional)
+                <input
+                  maxLength={120}
+                  value={workerForm.location}
+                  onChange={(event) =>
+                    setWorkerForm((current) => ({ ...current, location: event.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white"
+                />
+              </label>
+            </div>
+            <button
+              type="submit"
+              disabled={workerCreating}
+              className="rounded-xl bg-sky-700 px-5 py-3 text-xs font-black text-white disabled:opacity-50"
+            >
+              {workerCreating ? "Creating account..." : "Create worker account"}
+            </button>
+          </form>
 
           {/* Totals */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -1783,9 +2119,12 @@ function AdminDashboardPage() {
               </button>
             </div>
             <div className="rounded-2xl overflow-hidden border border-slate-800 max-h-[70vh] flex items-center justify-center bg-black">
-              <img
+              <Image
                 src={zoomImage.url}
                 alt={zoomImage.title}
+                width={1200}
+                height={800}
+                unoptimized
                 className="w-full h-auto max-h-[70vh] object-contain"
               />
             </div>

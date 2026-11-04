@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { UserRound } from "lucide-react";
 
 interface AvatarProps {
@@ -45,9 +46,12 @@ export const Avatar: React.FC<AvatarProps> = ({
   }
 
   return (
-    <img
+    <Image
       src={src}
       alt={name}
+      width={128}
+      height={128}
+      unoptimized
       loading="lazy"
       onError={() => setFailed(true)}
       className={`${className} object-cover shrink-0`}

@@ -456,6 +456,38 @@ class Database {
     return mapBooking(data);
   }
 
+  async createManualBookingAsService(booking: Booking): Promise<Booking> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("bookings")
+      .insert({
+        booking_ref: booking.bookingRef,
+        client_id: booking.clientId,
+        worker_id: booking.workerId,
+        service_name: booking.serviceName,
+        start_date: booking.startDate,
+        end_date: booking.endDate,
+        total_days: booking.totalDays,
+        engagement_type: booking.engagementType,
+        platform_booking_fee: 0,
+        worker_expected_daily_salary: booking.workerExpectedDailySalary,
+        worker_expected_monthly_salary: 0,
+        total_amount: 0,
+        status: "confirmed_exclusive",
+        escrow_status: "holding",
+        client_address: booking.clientAddress,
+        special_instructions: booking.specialInstructions ?? null,
+        payment_method: "admin_manual",
+        payment_status: null,
+        reservation_expires_at: null,
+      })
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return mapBooking(data);
+  }
+
   /** Used by server-side status transitions (service role bypasses RLS). */
   async updateBookingAsService(
     id: string,
