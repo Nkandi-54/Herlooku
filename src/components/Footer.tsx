@@ -107,7 +107,7 @@ export const Footer: React.FC = () => {
                 {t("footer.trustUpdates")}
               </span>
               <a
-                href="mailto:trust@herlooku.com?subject=Trust%20and%20Safety%20updates"
+                href="mailto:herlookutaskninja@gmail.com?subject=Trust%20and%20Safety%20updates"
                 className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs font-bold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
               >
                 {t("footer.getInTouch")}
@@ -166,15 +166,21 @@ export const Footer: React.FC = () => {
               <li className="flex items-center gap-2.5">
                 <Mail size={14} className="text-brand-400 shrink-0" />
                 <a
-                  href="mailto:trust@herlooku.com"
+                  href="mailto:herlookutaskninja@gmail.com"
                   className="hover:text-brand-300 transition-colors"
                 >
-                  trust@herlooku.com
+                  herlookutaskninja@gmail.com
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone size={14} className="text-brand-400 shrink-0" />
                 <span>{t("footer.emergencyLine")}</span>
+                <a
+                  href="tel:+254740042359"
+                  className="hover:text-brand-300 transition-colors"
+                >
+                  +254 740 042359
+                </a>
               </li>
             </ul>
 

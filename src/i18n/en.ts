@@ -85,7 +85,7 @@ const en = {
     platformHeading: "Platform",
     getInTouch: "Get in touch",
     location: "Nairobi, Kenya · Operating nationwide",
-    emergencyLine: "Emergency line: 999 / 112",
+    emergencyLine: "Helpline:",
     zeroBookingGuarantee: "Zero Double-Booking Guarantee",
     zeroBookingBody:
       "When you pay upfront, the helper is exclusively locked to your household — enforced automatically, silent and absolute, like a ninja on the schedule.",

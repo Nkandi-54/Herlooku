@@ -20,15 +20,16 @@ import {
   Scale,
   Truck,
   Quote,
+  Mail,
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { KES_PER_USD } from "@/types";
 
-/** Transparent pink Herkolu Island badge — see public/. */
+/** Transparent pink Herlooku Island badge — see public/. */
 const ISLAND_LOGO = "/herkolu-island-logo.png";
 
-const OWNER_PHONE =
-  process.env.NEXT_PUBLIC_DEFAULT_MPESA_NUMBER || "+254 740 042 359";
+const OWNER_PHONE = "+254 740 042359";
+const OWNER_EMAIL = "herlookutaskninja@gmail.com";
 
 /** WhatsApp needs digits only, without the leading `+` or any spaces. */
 const WHATSAPP_NUMBER = OWNER_PHONE.replace(/[^\d]/g, "");
@@ -42,18 +43,18 @@ const whatsappHref = (message: string) =>
 
 /** Pre-filled order message for a single catalogue item. */
 const orderMessage = (item: string, category: string) =>
-  `Hi Herkolu Island! I'd like to order:\n\n• Item: ${item}\n• Category: ${category}\n• Quantity: \n\nPlease confirm the price and availability. Thank you!`;
+  `Hi Herlooku! I'd like to order:\n\n• Item: ${item}\n• Category: ${category}\n• Quantity: \n\nPlease confirm the price and availability. Thank you!`;
 
 /** Pre-filled request for a laundry pickup, including the live estimate. */
-const laundryMessage = (kgs: number, kes: number) =>
-  `Hi Herkolu Island! I'd like to book a laundry pickup.\n\n• Load: ${kgs} kg\n• Estimated total: Ksh ${kes.toLocaleString()}\n• Pickup area: Mombasa — \n\nPlease confirm a collection time. Thank you!`;
+const laundryMessage = (kgs: number, ironing: boolean, kes: number) =>
+  `Hi Herlooku! I'd like to book a laundry pickup.\n\n• Load: ${kgs} kg\n• Wash, dry & fold: Ksh ${(kgs * LAUNDRY_RATE_KES).toLocaleString()}\n• Ironing: ${ironing ? `Yes — Ksh ${(kgs * IRONING_RATE_KES).toLocaleString()}` : "No"}\n• Estimated total: Ksh ${kes.toLocaleString()}\n• Pickup area: Mombasa — \n\nPlease confirm a collection time. Thank you!`;
 
 const CONTACTS = [
   {
     label: "WhatsApp",
     value: OWNER_PHONE,
     href: whatsappHref(
-      "Hi Herkolu Island! I'd like to place an order.",
+      "Hi Herlooku! I'd like to place an order.",
     ),
     icon: Phone,
   },
@@ -69,10 +70,18 @@ const CONTACTS = [
     href: "#laundry",
     icon: MapPin,
   },
+  {
+    label: "Email",
+    value: OWNER_EMAIL,
+    href: `mailto:${OWNER_EMAIL}`,
+    icon: Mail,
+  },
 ];
 
 /** Ksh 100 per kilogram of laundry. */
 const LAUNDRY_RATE_KES = 100;
+/** Optional ironing service per kilogram, in addition to laundry. */
+const IRONING_RATE_KES = 300;
 
 type Category = "all" | "snacks" | "clothes" | "shoes" | "beddings";
 
@@ -241,7 +250,7 @@ const SECTION_ICON: Record<Exclude<Category, "all">, typeof Coffee> = {
 };
 
 /**
- * Faded Herkolu Island badge used as an ambient watermark behind cards.
+ * Faded Herlooku Island badge used as an ambient watermark behind cards.
  *
  * A few things are deliberate here, because this is easy to get subtly wrong:
  *
@@ -297,6 +306,7 @@ export default function ShopPage() {
   const { formatPrice } = useCurrency();
   const [category, setCategory] = useState<Category>("all");
   const [kilos, setKilos] = useState<number>(5);
+  const [includeIroning, setIncludeIroning] = useState(false);
 
   const items = useMemo(
     () =>
@@ -306,8 +316,10 @@ export default function ShopPage() {
     [category],
   );
 
-  const safeKilos = Math.max(0, Math.floor(kilos || 0));
+  const safeKilos = Math.max(1, Math.min(40, Math.floor(kilos || 1)));
   const laundryKes = safeKilos * LAUNDRY_RATE_KES;
+  const ironingKes = includeIroning ? safeKilos * IRONING_RATE_KES : 0;
+  const totalLaundryKes = laundryKes + ironingKes;
 
   const orderHref = (item: string, categoryLabel: string) =>
     whatsappHref(orderMessage(item, categoryLabel));
@@ -355,7 +367,7 @@ export default function ShopPage() {
             <div className="flex flex-wrap gap-3 pt-2">
               <a
                 href={whatsappHref(
-                  "Hi Herkolu Island! I'd like to place an order.\n\n• Items: \n• Quantity: \n• Delivery area: Mombasa — \n\nPlease confirm the price and availability. Thank you!",
+                  "Hi Herlooku! I'd like to place an order.\n\n• Items: \n• Quantity: \n• Delivery area: Mombasa — \n\nPlease confirm the price and availability. Thank you!",
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -375,7 +387,7 @@ export default function ShopPage() {
             </div>
           </div>
 
-          {/* Pink Herkolu Island logo — seated on a light disc so the
+          {/* Pink Herlooku Island logo — seated on a light disc so the
               magenta artwork keeps its contrast against the rose hero. */}
           <div className="relative shrink-0 self-center justify-self-center lg:justify-self-end">
             {/* Outer bloom */}
@@ -384,7 +396,7 @@ export default function ShopPage() {
               <div className="rounded-full bg-rose-50 overflow-hidden">
                 <Image
                   src={ISLAND_LOGO}
-                  alt="Herkolu Island — coastal store and laundry in Mombasa"
+                  alt="Herlooku Island — coastal store and laundry in Mombasa"
                   width={260}
                   height={260}
                   priority
@@ -403,7 +415,7 @@ export default function ShopPage() {
       </section>
 
       {/* ─── Contact strip ──────────────────────────────────────── */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {CONTACTS.map((c) => {
           const Icon = c.icon;
           return (
@@ -601,45 +613,60 @@ export default function ShopPage() {
       {/* ─── Laundry ────────────────────────────────────────────── */}
       <section
         id="laundry"
-        className="relative overflow-hidden scroll-mt-24 rounded-[2rem] border border-sky-200 bg-gradient-to-br from-white via-sky-50/60 to-white p-6 sm:p-8 space-y-6 shadow-soft"
+        className="relative isolate overflow-hidden scroll-mt-24 rounded-[2rem] border border-sky-200 bg-slate-950 p-6 text-white shadow-[0_30px_80px_-40px_rgba(2,132,199,0.55)] sm:p-9"
       >
-        <div className="absolute -top-20 -right-10 w-72 h-72 rounded-full bg-sky-300/25 blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <span className="w-9 h-9 rounded-xl bg-sky-100 ring-1 ring-sky-200 text-sky-600 flex items-center justify-center">
-                <WashingMachine size={18} />
-              </span>
-              Laundry service · Mombasa
-            </h2>
-            <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
-              Wash, dry and fold for Ksh {LAUNDRY_RATE_KES} per kilogram.
-              Weighing is done in front of you, and the total is confirmed
-              before we start.
-            </p>
+        <div className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-cyan-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 left-1/4 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="relative grid gap-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">
+              <WashingMachine size={13} />
+              Herlooku Laundry · Mombasa
+            </div>
+            <div className="space-y-3">
+              <h2 className="max-w-2xl text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+                Fresh, folded and ready to wear.
+              </h2>
+              <p className="max-w-xl text-sm leading-relaxed text-slate-300">
+                We wash, dry and neatly fold your laundry, with optional
+                professional ironing for a crisp finish. We weigh your load
+                together and confirm the price before we begin.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                <WashingMachine size={18} className="mb-3 text-cyan-300" />
+                <p className="text-xs font-bold text-white">Wash, dry & fold</p>
+                <p className="mt-1 text-2xl font-black text-cyan-200">
+                  Ksh {LAUNDRY_RATE_KES}
+                  <span className="ml-1 text-xs font-semibold text-slate-400">/ kg</span>
+                </p>
+                <p className="mt-1 text-[11px] text-slate-400">Standard laundry service</p>
+              </div>
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-200/[0.07] p-4">
+                <Shirt size={18} className="mb-3 text-amber-300" />
+                <p className="text-xs font-bold text-white">Optional ironing</p>
+                <p className="mt-1 text-2xl font-black text-amber-200">
+                  + Ksh {IRONING_RATE_KES}
+                  <span className="ml-1 text-xs font-semibold text-slate-400">/ kg</span>
+                </p>
+                <p className="mt-1 text-[11px] text-slate-400">Add ironing to your laundry order</p>
+              </div>
+            </div>
           </div>
-          <div className="relative rounded-2xl bg-gradient-to-br from-sky-500 to-sky-600 px-5 py-4 shrink-0 overflow-hidden shadow-lg shadow-sky-500/25">
-            <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-white/25 blur-2xl pointer-events-none" />
-            <span className="relative text-[10px] font-black uppercase tracking-wider text-sky-100 block">
-              Rate
-            </span>
-            <span className="relative text-2xl font-black text-white">
-              Ksh {LAUNDRY_RATE_KES}
-            </span>
-            <span className="relative text-[11px] text-sky-50/90 block">
-              per kilogram
-            </span>
-          </div>
-        </div>
 
-        <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
-          <div className="rounded-2xl border border-sky-200 bg-white p-5 space-y-4 shadow-soft">
-            <label
-              htmlFor="laundry-kilos"
-              className="text-xs font-bold text-slate-700 flex items-center gap-1.5"
-            >
-              <Scale size={14} className="text-sky-500" />
-              Estimate your load
+          <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-slate-900 shadow-2xl sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-black">Estimate your order</p>
+                <p className="mt-1 text-xs text-slate-500">Choose a load size and add ironing if needed.</p>
+              </div>
+              <span className="rounded-xl bg-sky-50 p-2.5 text-sky-700">
+                <Scale size={18} />
+              </span>
+            </div>
+            <label htmlFor="laundry-kilos" className="mb-2 block text-xs font-bold text-slate-700">
+              Laundry weight
             </label>
             <div className="flex items-center gap-3">
               <input
@@ -647,101 +674,107 @@ export default function ShopPage() {
                 type="range"
                 min={1}
                 max={40}
-                value={kilos}
-                onChange={(e) => setKilos(Number(e.target.value))}
-                className="flex-1 accent-sky-500"
+                value={safeKilos}
+                onChange={(event) => setKilos(Number(event.target.value))}
+                className="min-w-0 flex-1 accent-sky-600"
               />
               <input
                 type="number"
                 min={1}
                 max={40}
+                step={1}
                 value={kilos}
-                onChange={(e) => setKilos(Number(e.target.value))}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setKilos(
+                    Number.isFinite(value)
+                      ? Math.min(40, Math.max(1, Math.floor(value)))
+                      : 1,
+                  );
+                }}
                 aria-label="Kilograms of laundry"
-                className="w-20 rounded-xl bg-sky-50 border border-sky-200 px-3 py-2 text-sm font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-bold"
               />
-              <span className="text-xs font-bold text-slate-600">kg</span>
+              <span className="text-xs font-bold text-slate-500">kg</span>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl bg-gradient-to-r from-sky-50 to-white border border-sky-200 px-4 py-3">
-              <span className="text-xs text-slate-600 whitespace-nowrap">
-                {safeKilos} kg × Ksh {LAUNDRY_RATE_KES}
-              </span>
-              <span className="flex items-baseline gap-2 whitespace-nowrap">
-                <span className="text-lg font-black text-slate-900">
-                  Ksh {laundryKes.toLocaleString()}
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100/70">
+              <input
+                type="checkbox"
+                checked={includeIroning}
+                onChange={(event) => setIncludeIroning(event.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-amber-600"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                  <Shirt size={14} className="text-amber-700" />
+                  Add ironing
                 </span>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  ≈ {formatPrice(laundryKes / KES_PER_USD)}
+                <span className="mt-1 block text-[11px] text-slate-600">
+                  Ksh {IRONING_RATE_KES} extra per kg · optional
                 </span>
               </span>
+              <span className="whitespace-nowrap text-xs font-black text-amber-800">
+                + Ksh {(safeKilos * IRONING_RATE_KES).toLocaleString()}
+              </span>
+            </label>
+
+            <div className="mt-5 space-y-2 rounded-2xl bg-slate-50 p-4">
+              <div className="flex justify-between gap-3 text-xs text-slate-600">
+                <span>Wash, dry & fold · {safeKilos} kg × Ksh {LAUNDRY_RATE_KES}</span>
+                <span className="font-bold text-slate-900">Ksh {laundryKes.toLocaleString()}</span>
+              </div>
+              {includeIroning && (
+                <div className="flex justify-between gap-3 text-xs text-slate-600">
+                  <span>Ironing · {safeKilos} kg × Ksh {IRONING_RATE_KES}</span>
+                  <span className="font-bold text-slate-900">Ksh {ironingKes.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex items-end justify-between gap-3 border-t border-slate-200 pt-3">
+                <span className="text-xs font-bold text-slate-600">Estimated total</span>
+                <span className="text-right">
+                  <span className="block text-xl font-black text-slate-950">
+                    Ksh {totalLaundryKes.toLocaleString()}
+                  </span>
+                  <span className="block text-[10px] font-semibold text-slate-500">
+                    ≈ {formatPrice(totalLaundryKes / KES_PER_USD)}
+                  </span>
+                </span>
+              </div>
             </div>
             <a
-              href={whatsappHref(laundryMessage(safeKilos, laundryKes))}
+              href={whatsappHref(laundryMessage(safeKilos, includeIroning, totalLaundryKes))}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-sky-500 transition-all"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 px-5 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-sky-700/25 transition-all hover:-translate-y-0.5 hover:from-sky-500 hover:to-blue-600"
             >
-              <MessageCircle size={14} />
-              Book pickup on WhatsApp
+              <MessageCircle size={15} />
+              Book laundry pickup
+              <ArrowUpRight size={14} />
             </a>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              The message is pre-filled with your {safeKilos} kg estimate. Final
-              price is confirmed by weight at collection. The minimum charge is
-              one kilogram.
+            <p className="mt-3 text-center text-[10px] leading-relaxed text-slate-500">
+              Estimate is based on your selected weight. Final price is confirmed
+              after weighing in person. Minimum charge: 1 kg.
             </p>
           </div>
+        </div>
 
-          <div className="space-y-3">
-            {[
-              {
-                icon: Phone,
-                title: "Book a pickup",
-                body: "Call or WhatsApp the Mombasa line to schedule a collection.",
-              },
-              {
-                icon: Scale,
-                title: "We weigh it with you",
-                body: `Ksh ${LAUNDRY_RATE_KES} per kilogram is charged on the confirmed weight.`,
-              },
-              {
-                icon: WashingMachine,
-                title: "Wash, dry & fold",
-                body: "Usually ready within 24–48 hours.",
-              },
-              {
-                icon: Truck,
-                title: "Delivered back",
-                body: "Returned to your door within Mombasa.",
-              },
-            ].map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <div
-                  key={step.title}
-                  className="group relative overflow-hidden flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition-all duration-300 hover:border-sky-300 hover:shadow-[0_18px_40px_-26px_rgba(14,165,233,0.5)]"
-                >
-                  <LogoWatermark
-                    corner="right-4 top-4"
-                    size="w-20 h-20"
-                opacity="opacity-[0.035]"
-                  />
-                  <span className="pointer-events-none absolute -right-8 -top-8 w-24 h-24 rounded-full bg-sky-300/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="relative w-9 h-9 rounded-xl bg-sky-100 ring-1 ring-sky-200 text-sky-600 flex items-center justify-center shrink-0 font-black text-[11px] transition-transform duration-300 group-hover:scale-105">
-                    {i + 1}
-                  </span>
-                  <div className="relative">
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                      <Icon size={12} className="text-sky-500" />
-                      {step.title}
-                    </span>
-                    <span className="block text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                      {step.body}
-                    </span>
-                  </div>
+        <div className="relative mt-8 grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
+          {[
+            { icon: Phone, title: "Schedule a pickup", body: "Call or WhatsApp to choose a convenient collection time." },
+            { icon: Scale, title: "Weigh together", body: "Your final weight and total are confirmed before work starts." },
+            { icon: Truck, title: "Clean clothes returned", body: "Laundry is usually ready in 24–48 hours across Mombasa." },
+          ].map((step) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.title} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <Icon size={16} className="mt-0.5 shrink-0 text-cyan-300" />
+                <div>
+                  <p className="text-xs font-bold text-white">{step.title}</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{step.body}</p>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

@@ -87,8 +87,9 @@ an administrator cannot demote another administrator with a crafted request.
 ## Shop & laundry
 
 `/shop` is the web owner's storefront: coastal snacks, ladies' clothes, shoes,
-beddings, and laundry in Mombasa at **Ksh 100 per kilogram**. Orders and pickups
-are arranged by phone or email; no card or M-Pesa is collected on the page.
+beddings, and laundry in Mombasa at **Ksh 100 per kilogram**. Optional ironing
+is available for an additional **Ksh 300 per kilogram**. Orders and pickups are
+arranged by phone or email; no card or M-Pesa is collected on the page.
 
 ## Security model
 

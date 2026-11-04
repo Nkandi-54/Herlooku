@@ -723,7 +723,7 @@ const sw: Translations = {
     platformHeading: "Jukwaa",
     getInTouch: "Wasiliana nasi",
     location: "Nairobi, Kenya · Tunafanya kazi nchini kote",
-    emergencyLine: "Simu ya dharura: 999 / 112",
+    emergencyLine: "Nambari ya msaada:",
     zeroBookingGuarantee: "Uhakika wa Kutokuweka Nafasi Mara Mbili",
     zeroBookingBody:
       "Unapolipa mapema, msaidizi amefungwa kwako pekee — hii inatekelezwa kiotomatiki, kimya na kwa ukamilifu, kama ninja anayelinda ratiba yako.",
