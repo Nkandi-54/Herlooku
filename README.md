@@ -1,6 +1,6 @@
 # Herlooku
 
-Herkooku is a marketplace for verified domestic-work bookings. A booking becomes
+Herlooku is a marketplace for verified domestic-work bookings. A booking becomes
 exclusive only after Safaricom has confirmed its M-Pesa payment to the server.
 
 Authentication, the database and identity-document storage are provided by
