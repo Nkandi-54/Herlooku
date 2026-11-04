@@ -9,12 +9,12 @@ export const dynamic = "force-dynamic";
  *
  * Body: { targetUserId: string; decision: "approve" | "reject"; rejectionReason?: string }
  *
- * Admin-only. Approving an ID marks the account ID-verified so it can appear in
- * the directory (provided the account itself is also approved).
+ * Admin-only. Approving an ID also approves a pending active account, making
+ * verified workers visible in the directory immediately.
  */
 export async function POST(req: Request) {
   try {
-    await requireAdminUser(req);
+    const admin = await requireAdminUser(req);
 
     const body = await req.json();
     const { targetUserId, decision, rejectionReason } = body;
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     const updated = await db.reviewIdVerification(
       String(targetUserId),
       decision,
+      admin.id,
       rejectionReason,
     );
 
@@ -49,9 +50,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       user: publicUser(updated),
-      message: `User ${updated.name} verification has been ${
-        decision === "approve" ? "approved" : "rejected"
-      }.`,
+      message:
+        decision === "approve"
+          ? updated.accountStatus === "approved"
+            ? `${updated.name}'s identity is verified and account is approved.`
+            : `${updated.name}'s identity is verified. The account remains ${updated.accountStatus || "pending"}.`
+          : `${updated.name} verification has been rejected.`,
     });
   } catch (error: any) {
     return jsonError(error, "Could not review the verification.");

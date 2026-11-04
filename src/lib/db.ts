@@ -763,27 +763,51 @@ class Database {
   async reviewIdVerification(
     userId: string,
     decision: "approve" | "reject",
+    adminId: string,
     rejectionReason?: string,
   ): Promise<User | null> {
     const sb = createAdminClient();
     const status: VerificationStatus =
       decision === "approve" ? "verified" : "rejected";
+    const now = new Date().toISOString();
+    const verificationPatch = {
+      id_verification_status: status,
+      verified_at: decision === "approve" ? now : null,
+      rejection_reason:
+        decision === "reject"
+          ? rejectionReason || "Document details could not be verified."
+          : null,
+    };
+
+    if (decision === "approve") {
+      const { data: approved, error: approvalError } = await sb
+        .from("profiles")
+        .update({
+          ...verificationPatch,
+          account_status: "approved",
+          account_status_reason: null,
+          approved_at: now,
+          approved_by: adminId,
+        })
+        .eq("id", userId)
+        .eq("account_status", "pending")
+        .is("deleted_at", null)
+        .select("*")
+        .maybeSingle();
+
+      if (approvalError) throw new Error(approvalError.message);
+      if (approved) return mapProfile(approved as ProfileRow);
+    }
 
     const { data, error } = await sb
       .from("profiles")
-      .update({
-        id_verification_status: status,
-        verified_at: decision === "approve" ? new Date().toISOString() : null,
-        rejection_reason:
-          decision === "reject"
-            ? rejectionReason || "Document details could not be verified."
-            : null,
-      })
+      .update(verificationPatch)
       .eq("id", userId)
       .select("*")
       .maybeSingle();
 
-    if (error || !data) return null;
+    if (error) throw new Error(error.message);
+    if (!data) return null;
     return mapProfile(data as ProfileRow);
   }
 
