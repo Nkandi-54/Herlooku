@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { LanguageProvider } from "@/i18n/LanguageContext";
@@ -61,6 +62,7 @@ export default function RootLayout({
             <Footer />
           </CurrencyProvider>
         </LanguageProvider>
+        <Analytics />
       </body>
     </html>
   );
