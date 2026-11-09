@@ -55,18 +55,35 @@ export function VerificationReminder() {
       const data = await response.json();
       const due = data.reminderDue === true;
       setReminderDue(due);
-      if (!due || pushEnabled) {
-        if (!due) setDismissed(false);
+      if (!due) {
+        setDismissed(false);
         return;
       }
       const dismissedAt = Number(
         window.localStorage.getItem(`id-reminder-dismissed-${userId}`) || 0,
       );
-      setDismissed(Date.now() - dismissedAt < SIX_HOURS);
+      const isDismissed = Date.now() - dismissedAt < SIX_HOURS;
+      setDismissed(isDismissed);
+
+      // If due and not dismissed, show browser/OS notification directly from the website
+      if (!isDismissed && "Notification" in window && Notification.permission === "granted" && "serviceWorker" in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification(tx("Complete your ID verification"), {
+            body: tx("Upload your ID and selfie to finish account verification."),
+            icon: "/herkolu-island-logo.png",
+            badge: "/icon.svg",
+            data: { url: "/verify-id" },
+            tag: "id-verification-reminder",
+          });
+        } catch (notifErr) {
+          console.warn("Could not display browser notification directly:", notifErr);
+        }
+      }
     } catch (checkError) {
       console.error("Could not check ID verification reminder status.", checkError);
     }
-  }, [pushEnabled, userId]);
+  }, [tx, userId]);
 
   useEffect(() => {
     setPushSupported(
@@ -156,7 +173,7 @@ export function VerificationReminder() {
 
   if (!userId) return null;
 
-  const showFallback = reminderDue && !pushEnabled && !dismissed;
+  const showFallback = reminderDue && !dismissed;
   return (
     <aside
       aria-live="polite"

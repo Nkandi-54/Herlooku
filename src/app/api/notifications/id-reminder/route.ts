@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { dispatchDueRemindersOpportunistically } from "@/lib/push-notifications";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
     const user = await requireAuthenticatedUser(req);
+
+    // Opportunistically dispatch due notifications in background without blocking response
+    void dispatchDueRemindersOpportunistically();
+
     const state = await db.getIdReminderState(user.id);
     if (
       !state ||
