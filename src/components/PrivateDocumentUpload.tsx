@@ -12,6 +12,7 @@ interface PrivateDocumentUploadProps {
   onChange: (path: string) => void;
   /** Preview aspect: portrait for selfies, landscape for ID scans. */
   aspect?: "landscape" | "portrait";
+  documentKind: "id_front" | "id_back" | "selfie";
 }
 
 /**
@@ -28,6 +29,7 @@ export const PrivateDocumentUpload: React.FC<PrivateDocumentUploadProps> = ({
   value,
   onChange,
   aspect = "landscape",
+  documentKind,
 }) => {
   const { t } = useLanguage();
   const tx = (copy: string) => t(`copy:${copy}`);
@@ -65,6 +67,7 @@ export const PrivateDocumentUpload: React.FC<PrivateDocumentUploadProps> = ({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("kind", "identity");
+      formData.append("documentKind", documentKind);
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -161,7 +164,7 @@ export const PrivateDocumentUpload: React.FC<PrivateDocumentUploadProps> = ({
       )}
       <p className="text-[10px] text-slate-400">
         {tx(
-          "JPG, PNG or WEBP · max 5 MB. Stored privately and visible only to our compliance team.",
+          "JPG, PNG or WEBP · max 5 MB. Stored privately for admin review and deleted after the review decision.",
         )}
       </p>
 

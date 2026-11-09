@@ -2,6 +2,22 @@ import type { Translations } from "./en";
 import en from "./en";
 
 const copy: Partial<Record<keyof typeof en.copy, string>> = {
+  "Complete your ID verification": "Kamilisha uthibitishaji wa kitambulisho chako",
+  "Upload your ID and selfie to finish account verification.": "Pakia kitambulisho na picha yako ya selfie ili kukamilisha uthibitishaji wa akaunti.",
+  "Go to ID verification": "Nenda kwenye uthibitishaji wa kitambulisho",
+  "Dismiss reminder": "Funga ukumbusho",
+  "Get a device reminder every 6 hours until you submit your ID and selfie.": "Pokea ukumbusho kwenye kifaa kila baada ya saa 6 hadi uwasilishe kitambulisho na selfie.",
+  "Enable": "Washa",
+  "Enabling…": "Inawashwa…",
+  "Could not enable device reminders.": "Imeshindwa kuwasha vikumbusho vya kifaa.",
+  "Device reminders are not configured yet.": "Vikumbusho vya kifaa bado havijawekwa.",
+  "Device reminders are not configured yet. In-app reminders will still appear when due.": "Vikumbusho vya kifaa bado havijawekwa. Vikumbusho vitaonekana ndani ya tovuti wakati wake ukifika.",
+  "Allow notifications in your browser settings to receive device reminders.": "Ruhusu arifa kwenye mipangilio ya kivinjari ili upokee vikumbusho.",
+  "Verified on": "Imethibitishwa tarehe",
+  "Our trust and compliance specialists are reviewing your submitted documents. Verification is usually completed within 30 minutes.": "Timu yetu ya uaminifu na uzingatiaji inakagua hati ulizowasilisha. Uthibitishaji kwa kawaida hukamilika ndani ya dakika 30.",
+  "How we handle your identity documents": "Jinsi tunavyoshughulikia hati zako za utambulisho",
+  "Your ID number, ID photos and selfie are stored privately and accessible only to authorized administrators for verification review. We delete those details and files after an administrator makes a decision; we retain only the verification outcome and review audit record.": "Nambari ya kitambulisho, picha za kitambulisho na selfie huhifadhiwa kwa faragha na wasimamizi walioidhinishwa pekee huzifikia kwa ukaguzi. Tunafuta maelezo na faili hizo baada ya msimamizi kufanya uamuzi; tunahifadhi tu matokeo ya uthibitishaji na rekodi ya ukaguzi.",
+  "JPG, PNG or WEBP · max 5 MB. Stored privately for admin review and deleted after the review decision.": "JPG, PNG au WEBP · hadi MB 5. Huhifadhiwa kwa faragha kwa ukaguzi wa msimamizi na hufutwa baada ya uamuzi.",
   "Two-sided ID verification · Guaranteed exclusive bookings": "Uthibitishaji wa vitambulisho vya pande zote · Nafasi za kipekee zimehakikishwa",
   "Hire verified househelps.": "Ajiri wasaidizi wa nyumbani waliothibitishwa.",
   "Lock them exclusively.": "Hakikisha wanapatikana kwa ajili yako pekee.",

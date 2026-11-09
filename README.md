@@ -47,6 +47,28 @@ That creates these tables:
 Two storage buckets are created: `identity-documents` (private — ID scans and
 selfies) and `avatars` (public).
 
+ID numbers, document images and selfies are visible only to authorized admins
+while a verification decision is pending. The app deletes those files and
+clears the submitted ID details after approval or rejection. It keeps the
+verification outcome and a minimal reviewer/decision/timestamp audit entry.
+Unsubmitted identity uploads are available to admins in the verification
+workbench and are also deleted when a decision is made.
+
+### Device reminders
+
+Users who have not submitted ID verification can opt into browser/device push
+reminders. Reminders repeat every six hours until submission; users who do not
+enable or cannot receive push see an in-app reminder when they return. Push
+notification permission is requested only after the user chooses **Enable**.
+Notification clicks open `/verify-id`.
+
+Generate a VAPID key pair with `npx web-push generate-vapid-keys`, then set
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and a
+random `CRON_SECRET` in local/hosting environment variables. The Vercel Cron
+job in `vercel.json` calls the reminder endpoint every six hours. The hosting
+plan must support this schedule. Do not commit the private VAPID key or cron
+secret.
+
 Worker profiles and the details entered during registration are saved by the
 auth signup trigger, including when email confirmation is enabled. The
 registration page waits for confirmation instead of sending an unconfirmed user
@@ -103,9 +125,10 @@ Security is enforced in the database, not only in application code.
   rows themselves are never enumerable by anonymous visitors.
 - **Privilege escalation is blocked by trigger.** A signed-in non-admin cannot
   change their own `role`, `account_status`, verification state or rating.
-- **Identity documents are private.** They live in a private bucket scoped to the
-  owner's UID and are exposed only through 10-minute signed URLs issued to the
-  owner or an administrator.
+- **Identity documents are private and short-lived.** While awaiting a review
+  decision, they live in a private bucket and are exposed only through
+  10-minute signed URLs issued to an administrator. The images and submitted ID
+  number are deleted after approval or rejection.
 - **Payments are server-authoritative.** The browser cannot confirm a payment;
   only the Safaricom callback locks a worker.
 - **Double-booking is impossible at the database level** via a range-overlap
@@ -120,6 +143,10 @@ Security is enforced in the database, not only in application code.
 | `NEXT_PUBLIC_SITE_URL` | Public | Canonical production URL used for Auth redirects |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** | Server-only; bypasses RLS. Never expose. |
 | `MPESA_*` | **Secret** | Daraja credentials and callback URL |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public | Browser push application-server key |
+| `VAPID_PRIVATE_KEY` | **Secret** | Server-only Web Push signing key |
+| `VAPID_SUBJECT` | Public | Contact URI supplied to push services |
+| `CRON_SECRET` | **Secret** | Authenticates scheduled reminder requests |
 
 `.env.local` is git-ignored. Never commit real credentials.
 
@@ -132,14 +159,19 @@ with the list of missing variables and `GET /api/payments/mpesa/config` reports
 
 1. Sign in at https://developer.safaricom.co.ke and create an app for a consumer
    key and secret.
-2. Copy the Lipa na M-Pesa passkey and the PayBill shortcode (542542).
+2. Select the **Lipa na M-Pesa Online** product for your app. Use the sandbox
+   shortcode and passkey supplied by Daraja while testing; `542542` is this
+   project's production PayBill shortcode and should not be used for sandbox
+   requests. Production requires your approved shortcode and its matching
+   production passkey.
 3. Expose a public HTTPS callback (`ngrok http 3000` locally) ending in
    `/api/payments/mpesa/callback`, and register that exact URL in the Daraja
    portal.
 4. Fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`,
-   `MPESA_PASSKEY` and `MPESA_CALLBACK_URL`. Booking references are generated
-   for each transaction and sent as the PayBill account reference. Use
-   `MPESA_ENVIRONMENT=sandbox` while testing, then switch to `production`.
+   `MPESA_PASSKEY` and `MPESA_CALLBACK_URL` using values for the same
+   environment. Booking references are generated for each transaction and
+   sent as the PayBill account reference. Use `MPESA_ENVIRONMENT=sandbox` while
+   testing, then switch to `production` only with approved live credentials.
 5. Restart the server. `GET /api/payments/mpesa/config` should report
    `configured: true`.
 
@@ -156,9 +188,9 @@ The browser cannot verify a payment, submit a Till code, or lock a worker.
 The directory shows active holds as `PENDING`; confirmed date ranges remain
 unavailable on worker calendars.
 
-Administrators can hide accounts without erasing their ID/selfie files or
-booking and payment history. Worker deletion requests and admin decisions are
-recorded in the immutable deletion audit. Apply all new SQL changes with
+Administrators can hide accounts without erasing booking and payment history.
+Worker deletion requests and admin decisions are recorded in the immutable
+deletion audit. Apply all new SQL changes with
 `supabase db push` before deploying the matching application code.
 
 ## Production checklist

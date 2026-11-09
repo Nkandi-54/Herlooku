@@ -53,9 +53,9 @@ export async function POST(req: Request) {
       message:
         decision === "approve"
           ? updated.accountStatus === "approved"
-            ? `${updated.name}'s identity is verified and account is approved.`
-            : `${updated.name}'s identity is verified. The account remains ${updated.accountStatus || "pending"}.`
-          : `${updated.name} verification has been rejected.`,
+            ? `${updated.name}'s identity is verified, account approved, and uploaded identity files deleted.`
+            : `${updated.name}'s identity is verified and uploaded identity files deleted. The account remains ${updated.accountStatus || "pending"}.`
+          : `${updated.name} verification has been rejected and uploaded identity files deleted.`,
     });
   } catch (error: any) {
     return jsonError(error, "Could not review the verification.");

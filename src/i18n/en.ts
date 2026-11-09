@@ -112,6 +112,22 @@ const en = {
 
   /** User-facing copy shared by routes and reusable components. */
   copy: {
+    "Complete your ID verification": "Complete your ID verification",
+    "Upload your ID and selfie to finish account verification.": "Upload your ID and selfie to finish account verification.",
+    "Go to ID verification": "Go to ID verification",
+    "Dismiss reminder": "Dismiss reminder",
+    "Get a device reminder every 6 hours until you submit your ID and selfie.": "Get a device reminder every 6 hours until you submit your ID and selfie.",
+    "Enable": "Enable",
+    "Enabling…": "Enabling…",
+    "Could not enable device reminders.": "Could not enable device reminders.",
+    "Device reminders are not configured yet.": "Device reminders are not configured yet.",
+    "Device reminders are not configured yet. In-app reminders will still appear when due.": "Device reminders are not configured yet. In-app reminders will still appear when due.",
+    "Allow notifications in your browser settings to receive device reminders.": "Allow notifications in your browser settings to receive device reminders.",
+    "Verified on": "Verified on",
+    "Our trust and compliance specialists are reviewing your submitted documents. Verification is usually completed within 30 minutes.": "Our trust and compliance specialists are reviewing your submitted documents. Verification is usually completed within 30 minutes.",
+    "How we handle your identity documents": "How we handle your identity documents",
+    "Your ID number, ID photos and selfie are stored privately and accessible only to authorized administrators for verification review. We delete those details and files after an administrator makes a decision; we retain only the verification outcome and review audit record.": "Your ID number, ID photos and selfie are stored privately and accessible only to authorized administrators for verification review. We delete those details and files after an administrator makes a decision; we retain only the verification outcome and review audit record.",
+    "JPG, PNG or WEBP · max 5 MB. Stored privately for admin review and deleted after the review decision.": "JPG, PNG or WEBP · max 5 MB. Stored privately for admin review and deleted after the review decision.",
     "Two-sided ID verification · Guaranteed exclusive bookings": "Two-sided ID verification · Guaranteed exclusive bookings",
     "Hire verified househelps.": "Hire verified househelps.",
     "Lock them exclusively.": "Lock them exclusively.",

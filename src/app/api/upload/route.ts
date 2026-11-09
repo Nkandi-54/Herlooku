@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 import { randomUUID } from "crypto";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get("file");
     const kind = String(formData.get("kind") || "avatar");
+    const documentKind = String(formData.get("documentKind") || "");
 
     if (!file || typeof file === "string") {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
@@ -41,6 +43,22 @@ export async function POST(req: Request) {
 
     if (kind !== "identity" && kind !== "avatar") {
       return NextResponse.json({ error: "Unsupported upload type." }, { status: 400 });
+    }
+    if (
+      kind === "identity" &&
+      !["id_front", "id_back", "selfie"].includes(documentKind)
+    ) {
+      return NextResponse.json({ error: "Choose an ID front, ID back, or selfie upload type." }, { status: 400 });
+    }
+    if (
+      kind === "identity" &&
+      user.idVerificationStatus !== "unverified" &&
+      user.idVerificationStatus !== "rejected"
+    ) {
+      return NextResponse.json(
+        { error: "Identity uploads are not accepted while verification is submitted or complete." },
+        { status: 409 },
+      );
     }
 
     const ext = ALLOWED_MIME[file.type];
@@ -100,6 +118,22 @@ export async function POST(req: Request) {
         path,
         message: "Photo uploaded successfully.",
       });
+    }
+
+    try {
+      await db.registerIdentityUploadAsService({
+        userId: user.id,
+        path,
+        kind: documentKind as "id_front" | "id_back" | "selfie",
+      });
+    } catch (error) {
+      const { error: cleanupError } = await supabase.storage
+        .from(bucket)
+        .remove([path]);
+      if (cleanupError) {
+        console.error("Could not clean up an unregistered identity upload.", cleanupError);
+      }
+      throw error;
     }
 
     return NextResponse.json({

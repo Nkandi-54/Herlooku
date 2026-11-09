@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/i18n/LanguageContext";
 import { AdminLanguageGuard } from "@/i18n/AdminLanguageGuard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { VerificationReminder } from "@/components/VerificationReminder";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -53,6 +54,7 @@ export default function RootLayout({
               Skip to content
             </a>
             <Navbar />
+            <VerificationReminder />
             <main id="main" className="flex-1">
               {children}
             </main>

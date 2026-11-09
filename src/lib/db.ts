@@ -767,6 +767,14 @@ class Database {
     rejectionReason?: string,
   ): Promise<User | null> {
     const sb = createAdminClient();
+    const { data: current, error: currentError } = await sb
+      .from("profiles")
+      .select("id,id_type,id_number,id_document_url,id_document_back_url,selfie_url")
+      .eq("id", userId)
+      .maybeSingle();
+    if (currentError) throw new Error(currentError.message);
+    if (!current) return null;
+
     const status: VerificationStatus =
       decision === "approve" ? "verified" : "rejected";
     const now = new Date().toISOString();
@@ -796,7 +804,22 @@ class Database {
         .maybeSingle();
 
       if (approvalError) throw new Error(approvalError.message);
-      if (approved) return mapProfile(approved as ProfileRow);
+      if (approved) {
+        await this.deleteIdentityDocumentsAfterReview(
+          sb,
+          userId,
+          adminId,
+          decision,
+          current,
+        );
+        const { data: scrubbed, error: scrubError } = await sb
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
+        if (scrubError) throw new Error(scrubError.message);
+        return mapProfile(scrubbed as ProfileRow);
+      }
     }
 
     const { data, error } = await sb
@@ -808,7 +831,255 @@ class Database {
 
     if (error) throw new Error(error.message);
     if (!data) return null;
-    return mapProfile(data as ProfileRow);
+    await this.deleteIdentityDocumentsAfterReview(
+      sb,
+      userId,
+      adminId,
+      decision,
+      current,
+    );
+    const { data: scrubbed, error: scrubError } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    if (scrubError) throw new Error(scrubError.message);
+    return mapProfile(scrubbed as ProfileRow);
+  }
+
+  private async deleteIdentityDocumentsAfterReview(
+    sb: ReturnType<typeof createAdminClient>,
+    userId: string,
+    adminId: string,
+    decision: "approve" | "reject",
+    profile: {
+      id_document_url: string | null;
+      id_document_back_url: string | null;
+      selfie_url: string | null;
+    },
+  ) {
+    const { data: uploads, error: uploadsError } = await sb
+      .from("identity_uploads")
+      .select("storage_path")
+      .eq("user_id", userId);
+    if (uploadsError) throw new Error(uploadsError.message);
+
+    const bucket = sb.storage.from("identity-documents");
+    const untrackedPaths: string[] = [];
+    for (let offset = 0; ; offset += 100) {
+      const { data: files, error: listError } = await bucket.list(userId, {
+        limit: 100,
+        offset,
+      });
+      if (listError) throw new Error(listError.message);
+      untrackedPaths.push(
+        ...(files ?? []).map((file) => `${userId}/${file.name}`),
+      );
+      if (!files || files.length < 100) break;
+    }
+
+    const paths = Array.from(
+      new Set(
+        [
+          profile.id_document_url,
+          profile.id_document_back_url,
+          profile.selfie_url,
+          ...(uploads ?? []).map((upload) => upload.storage_path as string),
+          ...untrackedPaths,
+        ].filter((path): path is string => Boolean(path)),
+      ),
+    );
+
+    const { error: auditError } = await sb
+      .from("identity_verification_audit")
+      .insert({
+        target_user_id: userId,
+        reviewer_user_id: adminId,
+        decision,
+      });
+    if (auditError) throw new Error(auditError.message);
+
+    if (paths.length > 0) {
+      const { error: storageError } = await bucket.remove(paths);
+      if (storageError) throw new Error(storageError.message);
+    }
+
+    const { error: uploadsDeleteError } = await sb
+      .from("identity_uploads")
+      .delete()
+      .eq("user_id", userId);
+    if (uploadsDeleteError) throw new Error(uploadsDeleteError.message);
+
+    const { error: scrubError } = await sb
+      .from("profiles")
+      .update({
+        id_type: null,
+        id_number: null,
+        id_document_url: null,
+        id_document_back_url: null,
+        selfie_url: null,
+      })
+      .eq("id", userId);
+    if (scrubError) throw new Error(scrubError.message);
+  }
+
+  async registerIdentityUploadAsService(input: {
+    userId: string;
+    path: string;
+    kind: "id_front" | "id_back" | "selfie";
+  }): Promise<void> {
+    const { error } = await createAdminClient()
+      .from("identity_uploads")
+      .insert({
+        user_id: input.userId,
+        storage_path: input.path,
+        document_kind: input.kind,
+      });
+    if (error) throw new Error(error.message);
+  }
+
+  async getIdentityUploadsAsService() {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("identity_uploads")
+      .select("id,user_id,storage_path,document_kind,uploaded_at")
+      .order("uploaded_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const userIds = Array.from(new Set((data ?? []).map((upload) => upload.user_id)));
+    if (userIds.length === 0) return [];
+    const { data: profiles, error: profilesError } = await sb
+      .from("profiles")
+      .select("id,name,email,role,id_verification_status,account_status,deleted_at")
+      .in("id", userIds)
+      .in("id_verification_status", ["unverified", "rejected"])
+      .is("deleted_at", null);
+    if (profilesError) throw new Error(profilesError.message);
+
+    const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+    return (data ?? [])
+      .filter((upload) => profileById.has(upload.user_id))
+      .map((upload) => ({
+        ...upload,
+        profile: profileById.get(upload.user_id)!,
+      }));
+  }
+
+  async getUnsubmittedIdentityAccountsAsService() {
+    const { data, error } = await createAdminClient()
+      .from("profiles")
+      .select("id,name,email,role,id_verification_status,account_status")
+      .in("id_verification_status", ["unverified", "rejected"])
+      .in("role", ["client", "worker"])
+      .is("deleted_at", null);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+
+  async getDueIdRemindersAsService(now = new Date()) {
+    const sb = createAdminClient();
+    const { data: profiles, error } = await sb
+      .from("profiles")
+      .select("id,name,created_at,id_reminder_last_sent_at")
+      .in("id_verification_status", ["unverified", "rejected"])
+      .in("account_status", ["pending", "approved"])
+      .in("role", ["client", "worker"])
+      .is("deleted_at", null);
+    if (error) throw new Error(error.message);
+
+    const due = (profiles ?? []).filter(
+      (profile) =>
+        !profile.id_reminder_last_sent_at ||
+        new Date(profile.id_reminder_last_sent_at).getTime() <=
+          now.getTime() - 6 * 60 * 60 * 1000,
+    );
+    if (due.length === 0) return [];
+
+    const { data: subscriptions, error: subscriptionsError } = await sb
+      .from("push_subscriptions")
+      .select("id,user_id,endpoint,p256dh,auth")
+      .in("user_id", due.map((profile) => profile.id));
+    if (subscriptionsError) throw new Error(subscriptionsError.message);
+
+    return due.map((profile) => ({
+      ...profile,
+      subscriptions: (subscriptions ?? []).filter(
+        (subscription) => subscription.user_id === profile.id,
+      ),
+    }));
+  }
+
+  async markIdReminderSentAsService(userId: string, sentAt: string) {
+    const { error } = await createAdminClient()
+      .from("profiles")
+      .update({ id_reminder_last_sent_at: sentAt })
+      .eq("id", userId)
+      .in("id_verification_status", ["unverified", "rejected"])
+      .is("deleted_at", null);
+    if (error) throw new Error(error.message);
+  }
+
+  async getIdReminderState(userId: string) {
+    const { data, error } = await createAdminClient()
+      .from("profiles")
+      .select("created_at,id_verification_status,id_reminder_last_sent_at")
+      .eq("id", userId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async savePushSubscriptionAsService(input: {
+    userId: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }) {
+    const sb = createAdminClient();
+    const { data: existing, error: lookupError } = await sb
+      .from("push_subscriptions")
+      .select("id,user_id")
+      .eq("endpoint", input.endpoint)
+      .maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
+    if (existing && existing.user_id !== input.userId) {
+      throw new Error("This device subscription is already linked to another account.");
+    }
+
+    const { error } = existing
+      ? await sb
+          .from("push_subscriptions")
+          .update({
+            p256dh: input.p256dh,
+            auth: input.auth,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id)
+      : await sb.from("push_subscriptions").insert({
+          user_id: input.userId,
+          endpoint: input.endpoint,
+          p256dh: input.p256dh,
+          auth: input.auth,
+        });
+    if (error) throw new Error(error.message);
+  }
+
+  async deletePushSubscriptionAsService(userId: string, endpoint: string) {
+    const { error } = await createAdminClient()
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", userId)
+      .eq("endpoint", endpoint);
+    if (error) throw new Error(error.message);
+  }
+
+  async deletePushSubscriptionByIdAsService(id: string) {
+    const { error } = await createAdminClient()
+      .from("push_subscriptions")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(error.message);
   }
 
   async reviewAccount(

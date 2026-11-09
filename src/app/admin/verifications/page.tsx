@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   LayoutDashboard,
   Search,
+  Bell,
 } from "lucide-react";
 import { User } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
@@ -22,9 +23,22 @@ export default function AdminVerificationsPage() {
   const { formatPrice } = useCurrency();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+  const [unsubmittedUploads, setUnsubmittedUploads] = useState<
+    {
+      id: string;
+      userId: string;
+      name: string;
+      email: string;
+      role: string;
+      verificationStatus: string;
+      kind: "id_front" | "id_back" | "selfie";
+      uploadedAt: string;
+      url: string;
+    }[]
+  >([]);
   const [verifiedUsers, setVerifiedUsers] = useState<User[]>([]);
   const [rejectedUsers, setRejectedUsers] = useState<User[]>([]);
-  const [activeQueueTab, setActiveQueueTab] = useState<"pending" | "verified" | "rejected">(
+  const [activeQueueTab, setActiveQueueTab] = useState<"pending" | "verified" | "rejected" | "uploads">(
     "pending"
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,6 +54,30 @@ export default function AdminVerificationsPage() {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
+  const [runningJob, setRunningJob] = useState(false);
+
+  const handleTriggerReminders = async () => {
+    setRunningJob(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/cron/id-verification-reminders", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Could not trigger reminders.");
+      }
+      setFeedback({
+        type: "success",
+        text: `6-hour reminder cycle executed: ${data.usersChecked ?? 0} unverified accounts checked, ${data.deviceNotificationsSent ?? 0} push notifications sent, ${data.inAppOnly ?? 0} in-app notifications queued.`,
+      });
+    } catch (err: any) {
+      setFeedback({
+        type: "error",
+        text: err?.message || "Failed to trigger reminders.",
+      });
+    } finally {
+      setRunningJob(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -53,6 +91,14 @@ export default function AdminVerificationsPage() {
         setPendingUsers(verData.pendingVerifications || []);
         setVerifiedUsers(verData.verifiedUsers || []);
         setRejectedUsers(verData.rejectedUsers || []);
+      }
+
+      const uploadRes = await fetch("/api/admin/identity-uploads", {
+        cache: "no-store",
+      });
+      if (uploadRes.ok) {
+        const uploadData = await uploadRes.json();
+        setUnsubmittedUploads(uploadData.uploads || []);
       }
     } catch (e) {
       console.error(e);
@@ -114,7 +160,9 @@ export default function AdminVerificationsPage() {
       ? pendingUsers
       : activeQueueTab === "verified"
       ? verifiedUsers
-      : rejectedUsers;
+      : activeQueueTab === "rejected"
+      ? rejectedUsers
+      : [];
 
   const filteredList = currentList.filter(
     (u) =>
@@ -146,6 +194,15 @@ export default function AdminVerificationsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={runningJob}
+            onClick={handleTriggerReminders}
+            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2"
+          >
+            <Bell size={15} />
+            <span>{runningJob ? "Sending reminders…" : "Trigger 6-Hr Reminders"}</span>
+          </button>
           <Link
             href="/admin"
             className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2"
@@ -177,6 +234,17 @@ export default function AdminVerificationsPage() {
       {/* Sub-Tabs and Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div className="flex items-center gap-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveQueueTab("uploads")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeQueueTab === "uploads"
+                ? "bg-sky-600 text-white shadow-md"
+                : "text-slate-400 hover:text-white hover:bg-slate-900"
+            }`}
+          >
+            <Clock size={14} />
+            <span>Incomplete uploads ({unsubmittedUploads.length})</span>
+          </button>
           <button
             onClick={() => setActiveQueueTab("pending")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
@@ -233,7 +301,59 @@ export default function AdminVerificationsPage() {
       </div>
 
       {/* Queue Content */}
-      {filteredList.length === 0 ? (
+      {activeQueueTab === "uploads" ? (
+        unsubmittedUploads.filter(
+          (upload) =>
+            upload.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            upload.email.toLowerCase().includes(searchQuery.toLowerCase()),
+        ).length === 0 ? (
+          <div className="bg-slate-900/60 rounded-3xl p-12 text-center border border-slate-800 space-y-2">
+            <CheckCircle2 size={32} className="text-emerald-500 mx-auto" />
+            <h3 className="text-sm font-bold text-white">No incomplete uploads</h3>
+            <p className="text-xs text-slate-400">
+              Identity files uploaded before form submission appear here for authorized admin review.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {unsubmittedUploads
+              .filter(
+                (upload) =>
+                  upload.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  upload.email.toLowerCase().includes(searchQuery.toLowerCase()),
+              )
+              .map((upload) => (
+                <div
+                  key={upload.id}
+                  className="rounded-3xl border border-sky-800/60 bg-slate-950 p-5 text-white"
+                >
+                  <p className="text-sm font-bold">{upload.name}</p>
+                  <p className="text-xs text-slate-400">
+                    {upload.email} · {upload.role} · {upload.verificationStatus}
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    Uploaded {new Date(upload.uploadedAt).toLocaleString()}
+                  </p>
+                  <p className="mt-3 text-xs font-semibold text-slate-300">
+                    {upload.kind.replace("_", " ")}
+                  </p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={upload.url}
+                    alt={`${upload.kind.replace("_", " ")} uploaded by ${upload.name}`}
+                    className="mt-2 h-48 w-full rounded-xl border border-slate-800 bg-black object-contain"
+                    onClick={() =>
+                      setZoomImage({
+                        url: upload.url,
+                        title: `${upload.name} - ${upload.kind.replace("_", " ")}`,
+                      })
+                    }
+                  />
+                </div>
+              ))}
+          </div>
+        )
+      ) : filteredList.length === 0 ? (
         <div className="bg-slate-900/60 rounded-3xl p-12 text-center border border-slate-800 space-y-2">
           <CheckCircle2 size={32} className="text-emerald-500 mx-auto" />
           <h3 className="text-sm font-bold text-white">No submissions found</h3>

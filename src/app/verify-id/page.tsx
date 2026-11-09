@@ -162,8 +162,8 @@ export default function VerifyIdPage() {
             <div>
               <h2 className="text-xl font-black text-slate-900">{tx("Your Identity is Verified ✓")}</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Verified on {new Date(currentUser.verifiedAt || Date.now()).toLocaleDateString()} via{" "}
-                {currentUser.idType?.replace("_", " ").toUpperCase()} (ID: {currentUser.idNumber})
+                {tx("Verified on")}{" "}
+                {new Date(currentUser.verifiedAt || Date.now()).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -215,10 +215,7 @@ export default function VerifyIdPage() {
 
           <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200 text-xs text-amber-900 space-y-2">
             <p className="leading-relaxed">
-              {t("copy:Our trust and compliance specialists are reviewing your submitted documents ({type} #{number}). Verification is usually completed within 30 minutes.", {
-                type: currentUser.idType?.replace("_", " ") || "",
-                number: currentUser.idNumber || "",
-              })}
+              {tx("Our trust and compliance specialists are reviewing your submitted documents. Verification is usually completed within 30 minutes.")}
             </p>
             <div className="pt-2">
               <p className="font-bold text-amber-950">
@@ -269,6 +266,12 @@ export default function VerifyIdPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs leading-relaxed text-sky-950">
+              <p className="font-bold">{tx("How we handle your identity documents")}</p>
+              <p className="mt-1">
+                {tx("Your ID number, ID photos and selfie are stored privately and accessible only to authorized administrators for verification review. We delete those details and files after an administrator makes a decision; we retain only the verification outcome and review audit record.")}
+              </p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800">{tx("Document Type")}</label>
@@ -303,6 +306,7 @@ export default function VerifyIdPage() {
               hint={tx("Must be crisp & readable")}
               value={idDocumentUrl}
               onChange={setIdDocumentUrl}
+              documentKind="id_front"
             />
 
             {/* Document Image Back (Optional for Passport) */}
@@ -312,6 +316,7 @@ export default function VerifyIdPage() {
                 hint={tx("Barcode / Signature side")}
                 value={idDocumentBackUrl}
                 onChange={setIdDocumentBackUrl}
+                documentKind="id_back"
               />
             )}
 
@@ -321,6 +326,7 @@ export default function VerifyIdPage() {
               hint={tx("Matches ID photo")}
               value={selfieUrl}
               onChange={setSelfieUrl}
+              documentKind="selfie"
               aspect="portrait"
             />
 
