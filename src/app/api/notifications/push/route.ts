@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
+import { isAdminRole } from "@/types";
 import { db } from "@/lib/db";
+import { isWebPushConfigured } from "@/lib/push-notifications";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    if (!isWebPushConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "Device reminders are not configured on this deployment yet. Please try again later.",
+          code: "PUSH_NOT_CONFIGURED",
+        },
+        { status: 503 },
+      );
+    }
+
     const user = await requireAuthenticatedUser(req);
+    const isAdmin = isAdminRole(user.role);
     if (
+      !isAdmin &&
       user.idVerificationStatus !== "unverified" &&
       user.idVerificationStatus !== "rejected"
     ) {
@@ -49,7 +64,7 @@ export async function POST(req: Request) {
       auth: subscription.keys.auth,
     });
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     return jsonError(error, "Could not enable device reminders.");
   }
 }
@@ -72,7 +87,7 @@ export async function DELETE(req: Request) {
     }
     await db.deletePushSubscriptionAsService(user.id, endpoint);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     return jsonError(error, "Could not disable device reminders.");
   }
 }

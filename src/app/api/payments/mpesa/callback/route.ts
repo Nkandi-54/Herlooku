@@ -13,9 +13,11 @@ export const dynamic = "force-dynamic";
  * verify the amount before confirming anything.
  */
 export async function POST(req: Request) {
+  let checkoutRequestId: string | undefined;
   try {
     const payload = await req.json();
     const details = callbackDetails(payload);
+    checkoutRequestId = details?.checkoutRequestId;
 
     if (!details) {
       return NextResponse.json(
@@ -71,8 +73,12 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
-  } catch {
+  } catch (error) {
     // A non-2xx asks Safaricom to retry transient failures.
+    console.error(
+      `[mpesa-callback] Failed to process callback for checkout ${checkoutRequestId ?? "unknown"}:`,
+      error,
+    );
     return NextResponse.json(
       { ResultCode: 1, ResultDesc: "Temporary processing error" },
       { status: 500 },

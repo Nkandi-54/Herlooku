@@ -18,6 +18,10 @@ import { VerificationBadge } from "@/components/VerificationBadge";
 import { Avatar } from "@/components/Avatar";
 import { PrivateDocumentImage } from "@/components/PrivateDocumentImage";
 import { useCurrency } from "@/context/CurrencyContext";
+import {
+  enablePushNotifications,
+  getExistingPushSubscription,
+} from "@/lib/push-client";
 
 export default function AdminVerificationsPage() {
   const { formatPrice } = useCurrency();
@@ -55,6 +59,27 @@ export default function AdminVerificationsPage() {
     null
   );
   const [runningJob, setRunningJob] = useState(false);
+  const [devicePushEnabled, setDevicePushEnabled] = useState(false);
+  const [enablingPush, setEnablingPush] = useState(false);
+
+  useEffect(() => {
+    void getExistingPushSubscription().then((sub) => setDevicePushEnabled(Boolean(sub)));
+  }, []);
+
+  const handleEnableDevicePush = async () => {
+    setEnablingPush(true);
+    const result = await enablePushNotifications();
+    if (result.ok) {
+      setDevicePushEnabled(true);
+      setFeedback({
+        type: "success",
+        text: "Push notifications successfully enabled on this browser! Click 'Trigger 6-Hr Reminders' to send a live test notification.",
+      });
+    } else {
+      setFeedback({ type: "error", text: result.message });
+    }
+    setEnablingPush(false);
+  };
 
   const handleTriggerReminders = async () => {
     setRunningJob(true);
@@ -65,9 +90,12 @@ export default function AdminVerificationsPage() {
       if (!res.ok) {
         throw new Error(data.error || "Could not trigger reminders.");
       }
+      const noPushAccounts = data.unsubscribedAccounts ?? data.inAppOnly ?? 0;
+      const failedPushes = data.failed ?? 0;
+      const sentPushes = data.deviceNotificationsSent ?? 0;
       setFeedback({
-        type: "success",
-        text: `6-hour reminder cycle executed: ${data.usersChecked ?? 0} unverified accounts checked, ${data.deviceNotificationsSent ?? 0} push notifications sent, ${data.inAppOnly ?? 0} in-app notifications queued.`,
+        type: failedPushes > 0 ? "error" : "success",
+        text: `6-hour reminder cycle executed: ${data.usersChecked ?? 0} unverified accounts checked, ${sentPushes} push notifications sent, ${noPushAccounts} accounts have no push subscription and remain in-app only, ${failedPushes} push attempts failed.`,
       });
     } catch (err: any) {
       setFeedback({
@@ -194,6 +222,22 @@ export default function AdminVerificationsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {!devicePushEnabled ? (
+            <button
+              type="button"
+              disabled={enablingPush}
+              onClick={handleEnableDevicePush}
+              className="px-4 py-2.5 rounded-xl border border-sky-500/50 bg-sky-950/60 hover:bg-sky-900/60 text-sky-200 text-xs font-bold transition-all shadow-md flex items-center gap-2"
+            >
+              <Bell size={15} />
+              <span>{enablingPush ? "Enabling Push…" : "Enable Device Push"}</span>
+            </button>
+          ) : (
+            <span className="px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+              <CheckCircle2 size={13} />
+              <span>Push Active</span>
+            </span>
+          )}
           <button
             type="button"
             disabled={runningJob}

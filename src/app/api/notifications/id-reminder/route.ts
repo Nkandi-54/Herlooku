@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       reminderDue: Date.now() >= dueAt,
       dueAt: new Date(dueAt).toISOString(),
     });
-  } catch (error: any) {
+  } catch (error) {
     return jsonError(error, "Could not check verification reminders.");
   }
 }
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const nowIso = new Date().toISOString();
     await db.markIdReminderSentAsService(user.id, nowIso);
     return NextResponse.json({ success: true, recordedAt: nowIso });
-  } catch (error: any) {
+  } catch (error) {
     return jsonError(error, "Could not record verification reminder.");
   }
 }

@@ -11,7 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          REMINDER_URL: ${{ vars.REMINDER_URL || 'https://herlookutaskninja.vercel.app' }}
         run: |
-          curl -s -X POST "https://herlookutaskninja.vercel.app/api/cron/id-verification-reminders" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json"
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::warning::CRON_SECRET is not set as a repository secret; calling the endpoint unauthenticated."
+            AUTH_HEADER=()
+          else
+            AUTH_HEADER=(-H "Authorization: Bearer ${CRON_SECRET}")
+          fi
+
+          BODY_FILE="$(mktemp)"
+          STATUS="$(curl --silent --show-error --output "${BODY_FILE}" --write-out '%{http_code}' \
+            -X POST "${REMINDER_URL}/api/cron/id-verification-reminders" \
+            "${AUTH_HEADER[@]}" \
+            -H "Content-Type: application/json")"
+
+          echo "HTTP ${STATUS}"
+          cat "${BODY_FILE}"
+          echo
+
+          if [ "${STATUS}" -lt 200 ] || [ "${STATUS}" -ge 300 ]; then
+            echo "::error::Reminder endpoint returned HTTP ${STATUS}."
+            exit 1
+          fi
+
+          if grep -q '"failed":[1-9]' "${BODY_FILE}"; then
+            echo "::warning::Some push notifications failed to send; see the response body above."
+          fi

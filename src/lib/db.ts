@@ -12,6 +12,10 @@ import {
   MpesaPayment,
   UserRole,
   hiringFeeUSD,
+  EngagementType,
+  BookingStatus,
+  EscrowStatus,
+  PaymentStatus,
 } from "@/types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,13 +34,114 @@ type ProfileRow = Parameters<typeof mapProfile>[0];
 
 // ── Row mappers ─────────────────────────────────────────────────────────────
 
-function mapWorkerProfile(row: any): WorkerProfile {
+type WorkerProfileRow = {
+  id: string;
+  user_id: string;
+  headline: string | null;
+  bio: string | null;
+  services: string[] | null;
+  engagement_types: EngagementType[] | null;
+  expected_daily_salary: number | string | null;
+  expected_monthly_salary: number | string | null;
+  location: string | null;
+  service_radius_km: number | null;
+  years_experience: number | null;
+  rating: number | string | null;
+  review_count: number | null;
+  languages: string[] | null;
+  police_clearance_verified: boolean | null;
+  background_check_verified: boolean | null;
+  reference_count: number | null;
+  live_in_available: boolean | null;
+  available_days: string[] | null;
+  skills: string[] | null;
+  featured: boolean | null;
+};
+
+type BookingRow = {
+  id: string;
+  booking_ref: string;
+  client_id: string;
+  worker_id: string;
+  service_name: string;
+  start_date: string;
+  end_date: string;
+  total_days: number;
+  engagement_type: EngagementType | null;
+  platform_booking_fee: number | string;
+  worker_expected_daily_salary: number | string;
+  worker_expected_monthly_salary: number | string | null;
+  total_amount: number | string;
+  status: BookingStatus;
+  escrow_status: EscrowStatus;
+  client_address: string;
+  special_instructions: string | null;
+  payment_method: string | null;
+  payment_transaction_ref: string | null;
+  payment_status: PaymentStatus | null;
+  payment_request_id: string | null;
+  payment_failure_reason: string | null;
+  reservation_expires_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+};
+
+type MpesaPaymentRow = {
+  id: string;
+  booking_id: string;
+  client_id: string;
+  amount_kes: number;
+  phone_number: string;
+  status: PaymentStatus;
+  merchant_request_id: string | null;
+  checkout_request_id: string | null;
+  mpesa_receipt_number: string | null;
+  paybill_number: string | null;
+  account_reference: string | null;
+  result_code: number | null;
+  result_description: string | null;
+  raw_callback: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  paid_at: string | null;
+};
+
+type ReviewRow = {
+  id: string;
+  booking_id: string;
+  client_id: string;
+  client_name: string;
+  client_avatar: string | null;
+  worker_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+};
+
+type AlarmRow = {
+  id: string;
+  booking_id: string | null;
+  booking_ref: string;
+  raised_by_user_id: string;
+  raised_by_name: string;
+  raised_by_user_role: "client" | "worker";
+  alarm_type: EmergencyAlarmType;
+  severity: EmergencyAlarm["severity"];
+  details: string;
+  location: string;
+  status: EmergencyAlarm["status"];
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+function mapWorkerProfile(row: WorkerProfileRow): WorkerProfile {
   const engagementTypes = row.engagement_types ?? [];
   return {
     id: row.id,
     userId: row.user_id,
-    headline: row.headline,
-    bio: row.bio,
+    headline: row.headline ?? "",
+    bio: row.bio ?? "",
     services: row.services ?? [],
     hireFee: hiringFeeUSD(
       engagementTypes.includes("daily") || engagementTypes.length === 0
@@ -46,23 +151,23 @@ function mapWorkerProfile(row: any): WorkerProfile {
     engagementTypes,
     expectedDailySalary: Number(row.expected_daily_salary ?? 0),
     expectedMonthlySalary: Number(row.expected_monthly_salary ?? 0),
-    location: row.location,
-    serviceRadiusKm: row.service_radius_km,
-    yearsExperience: row.years_experience,
+    location: row.location ?? "",
+    serviceRadiusKm: row.service_radius_km ?? 0,
+    yearsExperience: row.years_experience ?? 0,
     rating: Number(row.rating ?? 0),
-    reviewCount: row.review_count,
+    reviewCount: row.review_count ?? 0,
     languages: row.languages ?? [],
-    policeClearanceVerified: row.police_clearance_verified,
-    backgroundCheckVerified: row.background_check_verified,
-    referenceCount: row.reference_count,
-    liveInAvailable: row.live_in_available,
+    policeClearanceVerified: row.police_clearance_verified ?? false,
+    backgroundCheckVerified: row.background_check_verified ?? false,
+    referenceCount: row.reference_count ?? 0,
+    liveInAvailable: row.live_in_available ?? false,
     availableDays: row.available_days ?? [],
     skills: row.skills ?? [],
-    featured: row.featured,
+    featured: row.featured ?? false,
   };
 }
 
-function mapBooking(row: any): Booking {
+function mapBooking(row: BookingRow): Booking {
   return {
     id: row.id,
     bookingRef: row.booking_ref,
@@ -92,7 +197,7 @@ function mapBooking(row: any): Booking {
   };
 }
 
-function mapPayment(row: any): MpesaPayment {
+function mapPayment(row: MpesaPaymentRow): MpesaPayment {
   return {
     id: row.id,
     bookingId: row.booking_id,
@@ -114,13 +219,13 @@ function mapPayment(row: any): MpesaPayment {
   };
 }
 
-function mapReview(row: any): Review {
+function mapReview(row: ReviewRow): Review {
   return {
     id: row.id,
     bookingId: row.booking_id,
     clientId: row.client_id,
     clientName: row.client_name,
-    clientAvatar: row.client_avatar,
+    clientAvatar: row.client_avatar ?? "",
     workerId: row.worker_id,
     rating: row.rating,
     comment: row.comment,
@@ -128,7 +233,31 @@ function mapReview(row: any): Review {
   };
 }
 
-function mapAlarm(row: any): EmergencyAlarm {
+/**
+ * Shared snake_case insert payload for a booking. Callers override the fields
+ * that differ between a client checkout and an admin-created manual booking.
+ */
+function toBookingInsert(
+  booking: Booking,
+  overrides: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    booking_ref: booking.bookingRef,
+    client_id: booking.clientId,
+    worker_id: booking.workerId,
+    service_name: booking.serviceName,
+    start_date: booking.startDate,
+    end_date: booking.endDate,
+    total_days: booking.totalDays,
+    engagement_type: booking.engagementType,
+    worker_expected_daily_salary: booking.workerExpectedDailySalary,
+    client_address: booking.clientAddress,
+    special_instructions: booking.specialInstructions ?? null,
+    ...overrides,
+  };
+}
+
+function mapAlarm(row: AlarmRow): EmergencyAlarm {
   return {
     id: row.id,
     bookingId: row.booking_id ?? "general",
@@ -430,25 +559,17 @@ class Database {
       new Date(Date.now() + 5 * 60_000).toISOString();
     const { data, error } = await (await this.sb())
       .from("bookings")
-      .insert({
-        booking_ref: booking.bookingRef,
-        client_id: booking.clientId,
-        worker_id: booking.workerId,
-        service_name: booking.serviceName,
-        start_date: booking.startDate,
-        end_date: booking.endDate,
-        total_days: booking.totalDays,
-        engagement_type: booking.engagementType,
-        platform_booking_fee: booking.platformBookingFee,
-        worker_expected_daily_salary: booking.workerExpectedDailySalary,
-        worker_expected_monthly_salary: booking.workerExpectedMonthlySalary ?? 0,
-        total_amount: booking.totalAmount,
-        status: booking.status,
-        reservation_expires_at: reservationExpiresAt,
-        escrow_status: booking.escrowStatus,
-        client_address: booking.clientAddress,
-        special_instructions: booking.specialInstructions ?? null,
-      })
+      .insert(
+        toBookingInsert(booking, {
+          platform_booking_fee: booking.platformBookingFee,
+          worker_expected_monthly_salary:
+            booking.workerExpectedMonthlySalary ?? 0,
+          total_amount: booking.totalAmount,
+          status: booking.status,
+          reservation_expires_at: reservationExpiresAt,
+          escrow_status: booking.escrowStatus,
+        }),
+      )
       .select("*")
       .single();
 
@@ -460,27 +581,18 @@ class Database {
     const sb = createAdminClient();
     const { data, error } = await sb
       .from("bookings")
-      .insert({
-        booking_ref: booking.bookingRef,
-        client_id: booking.clientId,
-        worker_id: booking.workerId,
-        service_name: booking.serviceName,
-        start_date: booking.startDate,
-        end_date: booking.endDate,
-        total_days: booking.totalDays,
-        engagement_type: booking.engagementType,
-        platform_booking_fee: 0,
-        worker_expected_daily_salary: booking.workerExpectedDailySalary,
-        worker_expected_monthly_salary: 0,
-        total_amount: 0,
-        status: "confirmed_exclusive",
-        escrow_status: "holding",
-        client_address: booking.clientAddress,
-        special_instructions: booking.specialInstructions ?? null,
-        payment_method: "admin_manual",
-        payment_status: null,
-        reservation_expires_at: null,
-      })
+      .insert(
+        toBookingInsert(booking, {
+          platform_booking_fee: 0,
+          worker_expected_monthly_salary: 0,
+          total_amount: 0,
+          status: "confirmed_exclusive",
+          escrow_status: "holding",
+          payment_method: "admin_manual",
+          payment_status: null,
+          reservation_expires_at: null,
+        }),
+      )
       .select("*")
       .single();
 
@@ -599,7 +711,10 @@ class Database {
 
     const now = new Date().toISOString();
 
-    await sb
+    // Claim the payment atomically: only the callback that flips it from
+    // "pending" to "paid" may lock the worker. A concurrent duplicate callback
+    // updates zero rows and simply returns the current booking.
+    const { data: claimed, error: claimErr } = await sb
       .from("mpesa_payments")
       .update({
         status: "paid",
@@ -608,7 +723,13 @@ class Database {
         raw_callback: rawCallback,
         result_description: "Payment confirmed by Safaricom.",
       })
-      .eq("id", paymentId);
+      .eq("id", paymentId)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+
+    if (claimErr) throw new Error(claimErr.message);
+    if (!claimed) return booking;
 
     const { data: updated, error: updErr } = await sb
       .from("bookings")
@@ -680,7 +801,7 @@ class Database {
       .single();
     if (error || !data) return null;
 
-    await sb
+    const { error: bookingError } = await sb
       .from("bookings")
       .update({
         status: "cancelled",
@@ -690,6 +811,7 @@ class Database {
       })
       .eq("id", existing.booking_id)
       .neq("status", "confirmed_exclusive");
+    if (bookingError) throw new Error(bookingError.message);
 
     return mapPayment(data);
   }
@@ -775,6 +897,38 @@ class Database {
     if (currentError) throw new Error(currentError.message);
     if (!current) return null;
 
+    const updated = await this.applyVerificationDecision(
+      sb,
+      userId,
+      decision,
+      adminId,
+      rejectionReason,
+    );
+    if (!updated) return null;
+
+    await this.deleteIdentityDocumentsAfterReview(
+      sb,
+      userId,
+      adminId,
+      decision,
+      current,
+    );
+
+    return this.reloadScrubbedProfile(sb, userId);
+  }
+
+  /**
+   * Writes the verification decision. An approval also promotes a pending
+   * account to approved; if that conditional update matches nothing (the
+   * account is no longer pending) the plain verification patch is applied.
+   */
+  private async applyVerificationDecision(
+    sb: ReturnType<typeof createAdminClient>,
+    userId: string,
+    decision: "approve" | "reject",
+    adminId: string,
+    rejectionReason?: string,
+  ): Promise<boolean> {
     const status: VerificationStatus =
       decision === "approve" ? "verified" : "rejected";
     const now = new Date().toISOString();
@@ -800,44 +954,29 @@ class Database {
         .eq("id", userId)
         .eq("account_status", "pending")
         .is("deleted_at", null)
-        .select("*")
+        .select("id")
         .maybeSingle();
 
       if (approvalError) throw new Error(approvalError.message);
-      if (approved) {
-        await this.deleteIdentityDocumentsAfterReview(
-          sb,
-          userId,
-          adminId,
-          decision,
-          current,
-        );
-        const { data: scrubbed, error: scrubError } = await sb
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .single();
-        if (scrubError) throw new Error(scrubError.message);
-        return mapProfile(scrubbed as ProfileRow);
-      }
+      if (approved) return true;
     }
 
     const { data, error } = await sb
       .from("profiles")
       .update(verificationPatch)
       .eq("id", userId)
-      .select("*")
+      .select("id")
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (!data) return null;
-    await this.deleteIdentityDocumentsAfterReview(
-      sb,
-      userId,
-      adminId,
-      decision,
-      current,
-    );
+    return Boolean(data);
+  }
+
+  /** Re-reads a profile after identity documents have been scrubbed. */
+  private async reloadScrubbedProfile(
+    sb: ReturnType<typeof createAdminClient>,
+    userId: string,
+  ): Promise<User> {
     const { data: scrubbed, error: scrubError } = await sb
       .from("profiles")
       .select("*")
@@ -1080,6 +1219,16 @@ class Database {
       .delete()
       .eq("id", id);
     if (error) throw new Error(error.message);
+  }
+
+  async getPushSubscriptionsForUserAsService(userId: string) {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("push_subscriptions")
+      .select("id,endpoint,p256dh,auth")
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return data ?? [];
   }
 
   async reviewAccount(

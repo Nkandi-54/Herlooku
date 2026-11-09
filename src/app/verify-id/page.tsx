@@ -15,11 +15,16 @@ import {
   ArrowRight,
   UserCheck,
   FileText,
+  Bell,
 } from "lucide-react";
 import { User } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { PrivateDocumentUpload } from "@/components/PrivateDocumentUpload";
 import { useLanguage } from "@/i18n/LanguageContext";
+import {
+  enablePushNotifications,
+  getExistingPushSubscription,
+} from "@/lib/push-client";
 
 export default function VerifyIdPage() {
   const { t } = useLanguage();
@@ -39,6 +44,30 @@ export default function VerifyIdPage() {
   const [idDocumentUrl, setIdDocumentUrl] = useState("");
   const [idDocumentBackUrl, setIdDocumentBackUrl] = useState("");
   const [selfieUrl, setSelfieUrl] = useState("");
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [enablingPush, setEnablingPush] = useState(false);
+
+  useEffect(() => {
+    void getExistingPushSubscription().then((sub) => setPushEnabled(Boolean(sub)));
+  }, []);
+
+  const handleEnablePush = async () => {
+    setEnablingPush(true);
+    const result = await enablePushNotifications();
+    if (result.ok) {
+      setPushEnabled(true);
+      setFeedback({
+        type: "success",
+        text: tx("Device push notifications enabled! You will receive reminders every 6 hours."),
+      });
+    } else {
+      setFeedback({
+        type: "error",
+        text: tx(result.message),
+      });
+    }
+    setEnablingPush(false);
+  };
 
   const fetchUser = async () => {
     try {
@@ -266,6 +295,43 @@ export default function VerifyIdPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Device Push Reminders Opt-in Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-sky-600 text-white shrink-0 mt-0.5">
+                  <Bell size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-sky-950">
+                    {tx("6-Hour Device Push Reminders")}
+                  </p>
+                  <p className="text-[11px] text-sky-800 mt-0.5">
+                    {pushEnabled
+                      ? tx("Active on this device: You will receive notifications every 6 hours and upon approval.")
+                      : tx("Get notified on your phone or desktop every 6 hours until verification is approved.")}
+                  </p>
+                </div>
+              </div>
+              <div>
+                {pushEnabled ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold whitespace-nowrap">
+                    <CheckCircle2 size={14} className="text-emerald-600" />
+                    <span>{tx("Enabled")}</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={enablingPush}
+                    onClick={handleEnablePush}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all shadow whitespace-nowrap disabled:opacity-50"
+                  >
+                    <Bell size={13} />
+                    <span>{enablingPush ? tx("Enabling…") : tx("Enable push")}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs leading-relaxed text-sky-950">
               <p className="font-bold">{tx("How we handle your identity documents")}</p>
               <p className="mt-1">

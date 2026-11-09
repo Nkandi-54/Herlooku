@@ -157,23 +157,32 @@ export async function requireApprovedUser(req: Request): Promise<User> {
   return user;
 }
 
+/** Extracts a message from an unknown thrown value. */
+function errorMessage(error: unknown): string | undefined {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return undefined;
+}
+
 /** Maps a thrown guard error to the correct HTTP status code. */
-export function errorStatus(error: any): number {
-  if (error?.message === "UNAUTHENTICATED") return 401;
-  if (error?.message === "FORBIDDEN") return 403;
-  if (error?.message === "ACCOUNT_NOT_APPROVED") return 403;
+export function errorStatus(error: unknown): number {
+  const message = errorMessage(error);
+  if (message === "UNAUTHENTICATED") return 401;
+  if (message === "FORBIDDEN") return 403;
+  if (message === "ACCOUNT_NOT_APPROVED") return 403;
   return 500;
 }
 
 /** Consistent JSON error body for all route handlers. */
-export function jsonError(error: any, fallback = "Something went wrong.") {
+export function jsonError(error: unknown, fallback = "Something went wrong.") {
   const messages: Record<string, string> = {
     UNAUTHENTICATED: "Sign in required.",
     FORBIDDEN: "Administrator access required.",
     ACCOUNT_NOT_APPROVED: "Your account is awaiting administrator approval.",
   };
+  const message = errorMessage(error);
   return NextResponse.json(
-    { error: messages[error?.message] || error?.message || fallback },
+    { error: (message && messages[message]) || message || fallback },
     { status: errorStatus(error) },
   );
 }

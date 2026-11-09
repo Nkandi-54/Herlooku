@@ -16,10 +16,19 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const admin = await requireAdminUser(req);
-    const body = await req.json();
-    const { targetUserId, decision, reason } = body ?? {};
+    const body: unknown = await req.json();
+    const { targetUserId, decision, reason } = (body ?? {}) as {
+      targetUserId?: unknown;
+      decision?: unknown;
+      reason?: unknown;
+    };
 
-    if (!targetUserId || !["approve", "reject", "suspend"].includes(decision)) {
+    if (
+      typeof targetUserId !== "string" ||
+      !targetUserId ||
+      typeof decision !== "string" ||
+      !["approve", "reject", "suspend"].includes(decision)
+    ) {
       return NextResponse.json(
         {
           error:
@@ -29,7 +38,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const target = await db.getUserById(String(targetUserId));
+    const reviewReason =
+      typeof reason === "string" && reason.trim() ? reason.trim() : undefined;
+
+    const target = await db.getUserById(targetUserId);
     if (!target) {
       return NextResponse.json(
         { error: "Account not found." },
@@ -47,9 +59,9 @@ export async function POST(req: Request) {
 
     const updated = await db.reviewAccount(
       target.id,
-      decision,
+      decision as "approve" | "reject" | "suspend",
       admin.id,
-      reason,
+      reviewReason,
     );
     if (!updated) {
       return NextResponse.json(

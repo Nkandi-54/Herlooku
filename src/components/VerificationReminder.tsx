@@ -5,17 +5,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import {
+  enablePushNotifications,
+  getExistingPushSubscription,
+  isPushSupported,
+} from "@/lib/push-client";
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
-
-function decodeApplicationServerKey(value: string): ArrayBuffer {
-  const padding = "=".repeat((4 - (value.length % 4)) % 4);
-  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
-  const buffer = new ArrayBuffer(bytes.length);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
-}
 
 export function VerificationReminder() {
   const { t } = useLanguage();
@@ -29,9 +25,8 @@ export function VerificationReminder() {
   const [dismissed, setDismissed] = useState(false);
 
   const syncPushSubscription = useCallback(async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    const subscription = await registration.pushManager.getSubscription();
+    if (!isPushSupported()) return false;
+    const subscription = await getExistingPushSubscription();
     if (!subscription) return false;
     const response = await fetch("/api/notifications/push", {
       method: "POST",
@@ -39,7 +34,7 @@ export function VerificationReminder() {
       body: JSON.stringify(subscription),
     });
     if (!response.ok) {
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       throw new Error(data.error || tx("Could not enable device reminders."));
     }
     return true;
@@ -86,11 +81,7 @@ export function VerificationReminder() {
   }, [tx, userId]);
 
   useEffect(() => {
-    setPushSupported(
-      "serviceWorker" in navigator &&
-        "PushManager" in window &&
-        "Notification" in window,
-    );
+    setPushSupported(isPushSupported());
     const loadUser = async () => {
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
@@ -133,42 +124,13 @@ export function VerificationReminder() {
   const enablePush = async () => {
     setEnabling(true);
     setError("");
-    try {
-      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!publicKey) {
-        throw new Error(tx("Device reminders are not configured yet."));
-      }
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setError(tx("Allow notifications in your browser settings to receive device reminders."));
-        return;
-      }
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      const subscription =
-        (await registration.pushManager.getSubscription()) ||
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: decodeApplicationServerKey(publicKey),
-        }));
-      const response = await fetch("/api/notifications/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(subscription),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || tx("Could not enable device reminders."));
-      }
+    const result = await enablePushNotifications();
+    if (result.ok) {
       setPushEnabled(true);
-    } catch (enableError) {
-      setError(
-        enableError instanceof Error
-          ? enableError.message
-          : tx("Could not enable device reminders."),
-      );
-    } finally {
-      setEnabling(false);
+    } else {
+      setError(tx(result.message));
     }
+    setEnabling(false);
   };
 
   if (!userId) return null;
@@ -197,12 +159,25 @@ export function VerificationReminder() {
               <p className="mt-1 text-xs text-slate-600">
                 {tx("Upload your ID and selfie to finish account verification.")}
               </p>
-              <Link
-                href="/verify-id"
-                className="mt-3 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white"
-              >
-                {tx("Go to ID verification")}
-              </Link>
+              <div className="mt-3 flex items-center gap-2">
+                <Link
+                  href="/verify-id"
+                  className="inline-flex rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-500"
+                >
+                  {tx("Go to ID verification")}
+                </Link>
+                {!pushEnabled && pushSupported && (
+                  <button
+                    type="button"
+                    disabled={enabling}
+                    onClick={enablePush}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 hover:bg-slate-200 px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-50"
+                  >
+                    <Bell size={12} className="text-brand-600" />
+                    <span>{enabling ? tx("Enabling…") : tx("Enable push")}</span>
+                  </button>
+                )}
+              </div>
             </div>
             <button
               type="button"
@@ -227,7 +202,7 @@ export function VerificationReminder() {
         </div>
       ) : null}
 
-      {!pushEnabled && pushSupported && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? (
+      {!pushEnabled && pushSupported && !showFallback ? (
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
           <Bell size={18} className="shrink-0 text-brand-600" />
           <p className="flex-1 text-[11px] text-slate-600">
@@ -242,11 +217,6 @@ export function VerificationReminder() {
             {enabling ? tx("Enabling…") : tx("Enable")}
           </button>
         </div>
-      ) : null}
-      {!pushEnabled && pushSupported && !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? (
-        <p className="rounded-xl border border-slate-200 bg-white p-3 text-[11px] text-slate-600 shadow">
-          {tx("Device reminders are not configured yet. In-app reminders will still appear when due.")}
-        </p>
       ) : null}
       {error && (
         <p

@@ -8,11 +8,19 @@ type PushSubscription = {
   keys: { p256dh: string; auth: string };
 };
 
+export function isWebPushConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY,
+  );
+}
+
 function configureWebPush() {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) {
-    throw new Error("Web push is not configured. Set the VAPID public and private keys.");
+    throw new Error(
+      "Web Push is not configured. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.",
+    );
   }
   webPush.setVapidDetails(
     process.env.VAPID_SUBJECT || "mailto:privacy@herlookutaskninja.vercel.app",
@@ -44,6 +52,8 @@ let lastAutoDispatchTime = 0;
  * Throttled to run at most once every 5 minutes per server instance.
  */
 export async function dispatchDueRemindersOpportunistically() {
+  if (!isWebPushConfigured()) return;
+
   const now = Date.now();
   if (now - lastAutoDispatchTime < 5 * 60 * 1000) {
     return;

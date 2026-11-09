@@ -63,11 +63,24 @@ notification permission is requested only after the user chooses **Enable**.
 Notification clicks open `/verify-id`.
 
 Generate a VAPID key pair with `npx web-push generate-vapid-keys`, then set
-`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and a
-random `CRON_SECRET` in local/hosting environment variables. The Vercel Cron
-job in `vercel.json` calls the reminder endpoint every six hours. The hosting
-plan must support this schedule. Do not commit the private VAPID key or cron
-secret.
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` in
+local/hosting environment variables. Without both keys the reminder endpoint
+returns `503 PUSH_NOT_CONFIGURED` and the UI tells users device reminders are
+not available yet.
+
+Scheduling works in two independent ways:
+
+- **Vercel Cron** (`vercel.json`, daily on the Hobby plan) calls the endpoint
+  with the `x-vercel-cron` header, which the route accepts without a secret.
+- **GitHub Actions** (`.github/workflows/id-reminders.yml`, every six hours)
+  calls the endpoint with `Authorization: Bearer $CRON_SECRET`. Set the same
+  random `CRON_SECRET` in the Vercel deployment environment and as a GitHub
+  Actions repository secret. If the secret is missing the workflow still runs
+  unauthenticated and logs a warning; a non-2xx response fails the job.
+
+Do not commit the private VAPID key or cron secret. Recipients must still
+enable push in their browser (the banner, `/verify-id` or the admin workbench)
+before anything can be delivered to their device.
 
 Worker profiles and the details entered during registration are saved by the
 auth signup trigger, including when email confirmation is enabled. The
