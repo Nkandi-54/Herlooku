@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -258,6 +259,20 @@ export default function HomePage() {
           aria-hidden
           className="absolute inset-y-0 right-0 hidden w-[42%] bg-ink-soft lg:block"
         />
+        {/* Faded brand watermark in the hero background */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-end opacity-[0.08] select-none"
+        >
+          <Image
+            src="/herlooku-brand.png"
+            alt=""
+            width={560}
+            height={560}
+            priority={false}
+            className="-mr-16 h-auto w-[28rem] max-w-none lg:w-[36rem]"
+          />
+        </div>
         <div className="section relative grid min-h-[34rem] items-center gap-10 py-12 sm:py-16 lg:grid-cols-12 lg:py-20">
           <div className="space-y-7 lg:col-span-6">
             <p className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-brand-300">
