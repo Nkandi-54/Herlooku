@@ -88,7 +88,7 @@ export interface User {
   approvedBy?: string;
   /** Reason shown to the user when an account is rejected or suspended. */
   accountStatusReason?: string;
-  /** Soft-deleted accounts are hidden and cannot sign in; history is retained. */
+  /** Deleted accounts cannot sign in; their profile is anonymized for history. */
   deletedAt?: string;
   deletedBy?: string;
   deletionReason?: string;

@@ -2,6 +2,12 @@ import type { Translations } from "./en";
 import en from "./en";
 
 const copy: Partial<Record<keyof typeof en.copy, string>> = {
+  "Delete Account": "Futa Akaunti",
+  "Permanently delete your sign-in and personal profile. Past booking and payment records are retained in anonymized form for audit. Deletion is blocked while you have ongoing tasks or pending/unpaid bills.": "Futa kabisa akaunti yako na wasifu wako binafsi. Rekodi za nafasi na malipo ya awali zitahifadhiwa bila taarifa za kukutambulisha kwa ajili ya ukaguzi. Akaunti haiwezi kufutwa ikiwa una kazi zinazoendelea au bili ambazo hazijalipwa.",
+  "Type DELETE to confirm": "Andika DELETE kuthibitisha",
+  "Permanently delete my account": "Futa akaunti yangu kabisa",
+  "Deleting…": "Inafuta…",
+  "Could not delete your account.": "Imeshindwa kufuta akaunti yako.",
   "Complete your ID verification": "Kamilisha uthibitishaji wa kitambulisho chako",
   "Upload your ID and selfie to finish account verification.": "Pakia kitambulisho na picha yako ya selfie ili kukamilisha uthibitishaji wa akaunti.",
   "Go to ID verification": "Nenda kwenye uthibitishaji wa kitambulisho",

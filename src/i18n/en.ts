@@ -112,6 +112,12 @@ const en = {
 
   /** User-facing copy shared by routes and reusable components. */
   copy: {
+    "Delete Account": "Delete Account",
+    "Permanently delete your sign-in and personal profile. Past booking and payment records are retained in anonymized form for audit. Deletion is blocked while you have ongoing tasks or pending/unpaid bills.": "Permanently delete your sign-in and personal profile. Past booking and payment records are retained in anonymized form for audit. Deletion is blocked while you have ongoing tasks or pending/unpaid bills.",
+    "Type DELETE to confirm": "Type DELETE to confirm",
+    "Permanently delete my account": "Permanently delete my account",
+    "Deleting…": "Deleting…",
+    "Could not delete your account.": "Could not delete your account.",
     "Complete your ID verification": "Complete your ID verification",
     "Upload your ID and selfie to finish account verification.": "Upload your ID and selfie to finish account verification.",
     "Go to ID verification": "Go to ID verification",

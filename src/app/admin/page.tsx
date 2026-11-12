@@ -325,9 +325,9 @@ function AdminDashboardPage() {
     }
   };
 
-  const handleHideAccount = async (account: User) => {
+  const handleDeleteAccount = async (account: User) => {
     const reason = window.prompt(
-      `Why should ${account.name}'s account be hidden? This is recorded in the audit history.`,
+      `Why should ${account.name}'s account be permanently deleted? This is recorded in the audit history.`,
     );
     if (reason === null) return;
     if (reason.trim().length < 3) {
@@ -345,7 +345,7 @@ function AdminDashboardPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setFeedback({ type: "error", text: data.error || "Could not hide account." });
+        setFeedback({ type: "error", text: data.error || "Could not permanently delete account." });
       } else {
         setFeedback({ type: "success", text: data.message });
         await fetchData();
@@ -2078,17 +2078,20 @@ function AdminDashboardPage() {
                             {roleUpdating === u.id ? "Granting…" : "Grant admin"}
                           </button>
                         )}
-                        {!u.deletedAt &&
-                          !isSuperAdmin(u.role) &&
+                        {!isSuperAdmin(u.role) &&
                           u.id !== currentUser?.id && (
                             <button
                               type="button"
                               disabled={accountActionLoading === u.id}
-                              onClick={() => handleHideAccount(u)}
+                              onClick={() => handleDeleteAccount(u)}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-rose-800 px-3 py-2 text-[10px] font-bold text-rose-300 disabled:opacity-50"
                             >
                               <Trash2 size={12} />
-                              {accountActionLoading === u.id ? "Saving..." : "Hide account"}
+                              {accountActionLoading === u.id
+                                ? "Deleting..."
+                                : u.deletedAt
+                                  ? "Complete deletion"
+                                  : "Delete account"}
                             </button>
                           )}
                         </div>

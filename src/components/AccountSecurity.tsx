@@ -62,16 +62,7 @@ export default function AccountSecurity() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [deletionRequests, setDeletionRequests] = useState<
-    {
-      id: string;
-      reason: string;
-      status: string;
-      requested_at: string;
-      review_reason?: string | null;
-    }[]
-  >([]);
-  const [deletionReason, setDeletionReason] = useState("");
+  const [deletionConfirmation, setDeletionConfirmation] = useState("");
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionMessage, setDeletionMessage] = useState("");
 
@@ -84,13 +75,6 @@ export default function AccountSecurity() {
           const data = await res.json();
           if (!cancelled) {
             setCurrentUser(data.activeUser);
-            if (data.activeUser?.role === "worker") {
-              const requestRes = await fetch("/api/account-deletion-requests");
-              if (requestRes.ok) {
-                const requestData = await requestRes.json();
-                if (!cancelled) setDeletionRequests(requestData.requests || []);
-              }
-            }
           }
         }
       } catch (e) {
@@ -174,32 +158,23 @@ export default function AccountSecurity() {
   };
 
   const inputType = showPasswords ? "text" : "password";
-  const hasPendingDeletionRequest = deletionRequests.some(
-    (request) => request.status === "pending",
-  );
-
-  const submitDeletionRequest = async (event: React.FormEvent) => {
+  const deleteAccount = async (event: React.FormEvent) => {
     event.preventDefault();
     setDeletionMessage("");
     setDeletionSubmitting(true);
     try {
-      const response = await fetch("/api/account-deletion-requests", {
-        method: "POST",
+      const response = await fetch("/api/accounts/delete", {
+        method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: deletionReason }),
+        body: JSON.stringify({ confirmation: deletionConfirmation.trim() }),
       });
       const data = await response.json();
       if (!response.ok) {
-        setDeletionMessage(data.error || tx("Could not submit your request."));
+        setDeletionMessage(data.error || tx("Could not delete your account."));
         return;
       }
-      setDeletionReason("");
-      setDeletionMessage(data.message || tx("Your request was submitted."));
-      const requestResponse = await fetch("/api/account-deletion-requests");
-      if (requestResponse.ok) {
-        const requestData = await requestResponse.json();
-        setDeletionRequests(requestData.requests || []);
-      }
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.replace("/login");
     } catch (requestError) {
       console.error(requestError);
       setDeletionMessage(tx("Network error. Please try again."));
@@ -322,69 +297,45 @@ export default function AccountSecurity() {
           )}
       </section>
 
-      {currentUser?.role === "worker" && (
+      {(currentUser?.role === "client" || currentUser?.role === "worker") && (
         <section className="bg-white/80 backdrop-blur-xl border border-rose-200 rounded-2xl p-6 space-y-4">
           <div className="flex items-center gap-2">
             <UserX size={18} className="text-rose-600" />
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-              {tx("Request Account Deletion")}
+              {tx("Delete Account")}
             </h2>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
-            {tx("An administrator will review your request. Your account remains active until it is approved; booking and identity records are retained for audit and payment history.")}
+            {tx("Permanently delete your sign-in and personal profile. Past booking and payment records are retained in anonymized form for audit. Deletion is blocked while you have ongoing tasks or pending/unpaid bills.")}
           </p>
-          {deletionRequests.slice(0, 3).map((request) => (
-            <div
-              key={request.id}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"
-            >
-              <span className="font-bold uppercase text-slate-700">
-                {tx(request.status)}
-              </span>
-              <span className="ml-2 text-slate-500">
-                {new Date(request.requested_at).toLocaleString()}
-              </span>
-              <p className="mt-1 text-slate-600">{request.reason}</p>
-              {request.review_reason && (
-                <p className="mt-1 text-slate-500">
-                  {tx("Administrator response")}: {request.review_reason}
-                </p>
-              )}
-            </div>
-          ))}
-          <form onSubmit={submitDeletionRequest} className="space-y-3">
+          <form onSubmit={deleteAccount} className="space-y-3">
             <label className="block text-xs font-bold text-slate-700">
-              {tx("Reason for request")}
+              {tx("Type DELETE to confirm")}
             </label>
-            <textarea
-              value={deletionReason}
-              onChange={(event) => setDeletionReason(event.target.value)}
-              minLength={3}
-              maxLength={1000}
+            <input
+              value={deletionConfirmation}
+              onChange={(event) => setDeletionConfirmation(event.target.value)}
+              autoComplete="off"
               required
-              rows={3}
-              disabled={hasPendingDeletionRequest || deletionSubmitting}
+              disabled={deletionSubmitting}
               className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 disabled:bg-slate-100"
             />
             {deletionMessage && (
-              <p role="status" className="text-xs font-semibold text-slate-700">
+              <p role="alert" className="text-xs font-semibold text-rose-700">
                 {deletionMessage}
               </p>
             )}
             <button
               type="submit"
               disabled={
-                hasPendingDeletionRequest ||
                 deletionSubmitting ||
-                deletionReason.trim().length < 3
+                deletionConfirmation.trim() !== "DELETE"
               }
               className="rounded-xl bg-rose-700 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deletionSubmitting
-                ? tx("Submitting…")
-                : hasPendingDeletionRequest
-                  ? tx("Request pending")
-                  : tx("Send deletion request")}
+                ? tx("Deleting…")
+                : tx("Permanently delete my account")}
             </button>
           </form>
         </section>

@@ -1300,6 +1300,55 @@ class Database {
     if (error) throw new Error(error.message);
   }
 
+  async permanentlyDeleteAccountAsService(input: {
+    targetUserId: string;
+    actorUserId?: string;
+    reason: string;
+  }): Promise<void> {
+    const { error } = await createAdminClient().rpc("permanently_delete_account", {
+      p_target_user_id: input.targetUserId,
+      p_actor_user_id: input.actorUserId ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteAccountStorageAsService(userId: string): Promise<void> {
+    const sb = createAdminClient();
+    for (const bucketName of ["identity-documents", "avatars"]) {
+      const bucket = sb.storage.from(bucketName);
+      const paths: string[] = [];
+      for (let offset = 0; ; offset += 100) {
+        const { data: files, error } = await bucket.list(userId, {
+          limit: 100,
+          offset,
+        });
+        if (error) throw new Error(error.message);
+        paths.push(
+          ...(files ?? [])
+            .filter((file) => file.id !== null)
+            .map((file) => `${userId}/${file.name}`),
+        );
+        if (!files || files.length < 100) break;
+      }
+
+      if (paths.length > 0) {
+        const { error } = await bucket.remove(paths);
+        if (error) throw new Error(error.message);
+      }
+    }
+  }
+
+  async deleteAuthUserAsService(userId: string): Promise<void> {
+    const sb = createAdminClient();
+    const { error: lookupError } = await sb.auth.admin.getUserById(userId);
+    if (lookupError?.status === 404) return;
+    if (lookupError) throw new Error(lookupError.message);
+
+    const { error } = await sb.auth.admin.deleteUser(userId);
+    if (error) throw new Error(error.message);
+  }
+
   async createAccountDeletionRequest(
     userId: string,
     reason: string,

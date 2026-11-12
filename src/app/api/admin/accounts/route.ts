@@ -241,7 +241,7 @@ export async function PATCH(req: Request) {
   }
 }
 
-/** Soft-hide an account while preserving financial and identity history. */
+/** Permanently delete an account after its open tasks and bills are resolved. */
 export async function DELETE(req: Request) {
   try {
     const admin = await requireAdminUser(req);
@@ -258,37 +258,56 @@ export async function DELETE(req: Request) {
     }
     if (targetUserId === admin.id) {
       return NextResponse.json(
-        { error: "You cannot hide your own administrator account." },
+        { error: "You cannot permanently delete your own administrator account." },
         { status: 400 },
       );
     }
 
     const target = await db.getUserByIdAsService(targetUserId);
-    if (!target || target.deletedAt) {
+    if (!target) {
       return NextResponse.json({ error: "Active account not found." }, { status: 404 });
     }
     if (isSuperAdmin(target.role)) {
       return NextResponse.json(
-        { error: "The main administrator account cannot be hidden." },
+        { error: "The main administrator account cannot be permanently deleted." },
         { status: 403 },
       );
     }
 
-    await db.softDeleteAccountAsService({
-      target,
-      actor: admin,
+    await db.permanentlyDeleteAccountAsService({
+      targetUserId,
+      actorUserId: admin.id,
       reason,
-      action: "admin_deleted",
     });
+    await db.deleteAccountStorageAsService(targetUserId);
+    await db.deleteAuthUserAsService(targetUserId);
 
     return NextResponse.json({
       success: true,
-      message: `${target.name}'s account is hidden. Existing identity, booking, and payment records are retained.`,
+      message: `${target.name}'s account has been permanently deleted. Financial and booking history remains anonymized.`,
     });
   } catch (error: any) {
-    if (String(error?.message).includes("active bookings")) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+    if (error?.message === "ACCOUNT_DELETION_HAS_ONGOING_TASKS") {
+      return NextResponse.json(
+        { error: "Complete or cancel all ongoing tasks before deleting this account." },
+        { status: 409 },
+      );
     }
-    return jsonError(error, "Could not hide the account.");
+    if (error?.message === "ACCOUNT_DELETION_HAS_UNPAID_BILLS") {
+      return NextResponse.json(
+        { error: "Resolve all pending or unpaid bills before deleting this account." },
+        { status: 409 },
+      );
+    }
+    if (
+      error?.message === "ACCOUNT_DELETION_PRIMARY_ADMIN_PROTECTED" ||
+      error?.message === "ACCOUNT_DELETION_ADMIN_REQUIRED"
+    ) {
+      return NextResponse.json(
+        { error: "This account cannot be permanently deleted by this administrator." },
+        { status: 403 },
+      );
+    }
+    return jsonError(error, "Could not permanently delete the account.");
   }
 }
