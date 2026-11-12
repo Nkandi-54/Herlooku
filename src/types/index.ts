@@ -46,6 +46,14 @@ export interface MpesaPayment {
 export const KES_PER_USD = 130;
 export const DAILY_HIRING_FEE_KES = 1000;
 export const MONTHLY_HIRING_FEE_KES = 3000;
+/** Extra hiring fee per child for childcare & nanny bookings (KES). */
+export const CHILDCARE_FEE_PER_CHILD_KES = 1000;
+/** Services whose hire fee does not include consumables the client supplies. */
+export const CLIENT_BUYS_SUPPLIES_SERVICES = [
+  "Deep Cleaning",
+  "Deep Cleaning (Professional)",
+  "Mama Fua",
+];
 export const DAILY_HIRING_FEE_USD = DAILY_HIRING_FEE_KES / KES_PER_USD;
 export const MONTHLY_HIRING_FEE_USD = MONTHLY_HIRING_FEE_KES / KES_PER_USD;
 /** Legacy name retained for existing monthly bookings and callers. */
@@ -140,6 +148,19 @@ export interface WorkerProfile {
   bookingPending?: boolean;
 }
 
+export interface FinanceLedgerEntry {
+  id: string;
+  entryType: "income" | "expense";
+  category: string;
+  description: string;
+  amountKes: number;
+  occurredOn: string;
+  transactionRef?: string;
+  bookingRef?: string;
+  recordedByName?: string;
+  createdAt: string;
+}
+
 export interface Booking {
   id: string;
   bookingRef: string; // e.g. "HLK-26-9042" (12-char M-Pesa reference limit)
@@ -154,6 +175,10 @@ export interface Booking {
   workerExpectedDailySalary: number;
   workerExpectedMonthlySalary?: number;
   totalAmount: number; // Amount collected by Herlooku at booking
+  /** Number of children cared for (childcare & nanny bookings only). */
+  childcareChildren?: number;
+  /** One-off surcharge: hiringFeePerChild × children (KES converted to USD base). */
+  childcareFee?: number;
   hireFee?: number; // Optional legacy field
   platformFee?: number; // Optional legacy field
   status: BookingStatus;

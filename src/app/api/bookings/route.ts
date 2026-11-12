@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { Booking, EngagementType, hiringFeeUSD, isAdminRole } from "@/types";
+import {
+  Booking,
+  EngagementType,
+  hiringFeeUSD,
+  CHILDCARE_FEE_PER_CHILD_KES,
+  KES_PER_USD,
+  isAdminRole,
+} from "@/types";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -106,7 +113,13 @@ export async function POST(req: Request) {
       specialInstructions,
       serviceRequirements,
       engagementType,
+      childcareChildren: childcareChildrenRaw,
     } = body;
+
+    const childcareChildren = Math.max(
+      0,
+      Math.min(10, Math.floor(Number(childcareChildrenRaw) || 0)),
+    );
 
     if (!workerId || !startDate || !endDate || !clientAddress) {
       return NextResponse.json(
@@ -224,6 +237,13 @@ export async function POST(req: Request) {
     );
 
     const platformBookingFee = hiringFeeUSD(selectedEngagement);
+    const isChildcare =
+      String(serviceName || "").toLowerCase().includes("childcare") ||
+      String(serviceName || "").toLowerCase().includes("nanny");
+    const children = isChildcare ? childcareChildren : 0;
+    // KES 1,000 per child, converted to the USD base used by all booking math.
+    const childcareFee =
+      (children * CHILDCARE_FEE_PER_CHILD_KES) / KES_PER_USD;
     const workerExpectedDailySalary =
       selectedEngagement === "daily"
         ? workerProfile.expectedDailySalary || 8
@@ -235,6 +255,7 @@ export async function POST(req: Request) {
         : 0;
     const totalAmount =
       platformBookingFee +
+      childcareFee +
       (selectedEngagement === "daily"
         ? workerExpectedDailySalary * totalDays
         : 0);
@@ -257,6 +278,8 @@ export async function POST(req: Request) {
       workerExpectedDailySalary,
       workerExpectedMonthlySalary,
       totalAmount,
+      childcareChildren: children,
+      childcareFee,
       status: "pending_payment",
       escrowStatus: "holding",
       clientAddress,

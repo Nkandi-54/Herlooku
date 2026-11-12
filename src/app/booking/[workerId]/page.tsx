@@ -26,6 +26,8 @@ import {
   EngagementType,
   hiringFeeUSD,
   KES_PER_USD,
+  CHILDCARE_FEE_PER_CHILD_KES,
+  CLIENT_BUYS_SUPPLIES_SERVICES,
 } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -50,6 +52,7 @@ function BookingCheckoutPage() {
   const [endDate, setEndDate] = useState(searchParams.get("endDate") || "");
   const [clientAddress, setClientAddress] = useState(searchParams.get("clientAddress") || "");
   const [specialInstructions, setSpecialInstructions] = useState(searchParams.get("specialInstructions") || "");
+  const [childcareChildren, setChildcareChildren] = useState(0);
 
   // Payment fields
   const [paymentMethod, setPaymentMethod] = useState<"mobile_money">("mobile_money");
@@ -179,6 +182,14 @@ function BookingCheckoutPage() {
       totalDays = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
     }
   }
+  const isChildcareService =
+    serviceName.toLowerCase().includes("childcare") ||
+    serviceName.toLowerCase().includes("nanny");
+  const children = isChildcareService ? childcareChildren : 0;
+  const childcareFee = (children * CHILDCARE_FEE_PER_CHILD_KES) / KES_PER_USD;
+  const buysSupplies = CLIENT_BUYS_SUPPLIES_SERVICES.some(
+    (s) => serviceName.toLowerCase().includes(s.toLowerCase()),
+  );
   const platformBookingFee = hiringFeeUSD(engagementType);
   const workerExpectedDailySalary =
     engagementType === "daily" ? workerData.expectedDailySalary || 8 : 0;
@@ -191,7 +202,7 @@ function BookingCheckoutPage() {
     engagementType === "daily"
       ? workerExpectedDailySalary * totalDays
       : 0;
-  const totalAmount = platformBookingFee + workerSalaryDueAtBooking;
+  const totalAmount = platformBookingFee + childcareFee + workerSalaryDueAtBooking;
 
   // Handle booking creation + payment
   const handleExecutePayment = async () => {
@@ -211,6 +222,7 @@ function BookingCheckoutPage() {
           clientAddress,
           specialInstructions,
           engagementType,
+          childcareChildren: children,
         }),
       });
 
@@ -469,6 +481,28 @@ function BookingCheckoutPage() {
                 </select>
               </div>
 
+              {isChildcareService && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">
+                    {tx("Number of children")}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={childcareChildren}
+                    aria-label={tx("Number of children")}
+                    onChange={(e) =>
+                      setChildcareChildren(Math.max(0, Math.min(10, Number(e.target.value) || 0)))
+                    }
+                    className="field"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    {tx("KSh 1,000 hiring-fee surcharge per child.")}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">{tx("Household Address")}</label>
                 <input
@@ -658,11 +692,28 @@ function BookingCheckoutPage() {
                   </span>
                 </div>
               )}
+              {children > 0 && (
+                <>
+                  <div className="flex justify-between text-slate-600">
+                    <span>{tx("Childcare surcharge")} ({children} × KSh 1,000)</span>
+                    <span className="font-semibold text-slate-900">{formatPrice(childcareFee)}</span>
+                  </div>
+                </>
+              )}
               <div className="pt-3 border-t border-slate-200 flex justify-between text-base font-black text-slate-900">
                 <span>{tx("Total Due to Herlooku Now")}</span>
                 <span className="text-brand-700">{formatPrice(totalAmount)}</span>
               </div>
             </div>
+
+            {buysSupplies && (
+              <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-[11px] text-sky-900 space-y-1">
+                <span className="font-bold block">{tx("Supplies Notice:")}</span>
+                <p className="leading-tight text-sky-800">
+                  {tx("The hiring fee does not include cleaning products. You buy the supplies yourself or arrange their purchase with your worker.")}
+                </p>
+              </div>
+            )}
 
             {/* Crucial salary disclaimer */}
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 space-y-1">

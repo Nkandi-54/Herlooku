@@ -123,6 +123,32 @@ function AdminDashboardPage() {
     clientAddress: "",
     specialInstructions: "",
   });
+  const [ledger, setLedger] = useState<
+    {
+      id: string;
+      entryType: "income" | "expense";
+      category: string;
+      description: string;
+      amountKes: number;
+      occurredOn: string;
+      transactionRef?: string;
+      bookingRef?: string;
+      recordedByName?: string;
+      createdAt: string;
+    }[]
+  >([]);
+  const [ledgerCategories, setLedgerCategories] = useState<string[]>([]);
+  const [ledgerTotals, setLedgerTotals] = useState({ income: 0, expenses: 0, net: 0 });
+  const [ledgerForm, setLedgerForm] = useState({
+    entryType: "income" as "income" | "expense",
+    category: "",
+    description: "",
+    amountKes: "",
+    occurredOn: "",
+    transactionRef: "",
+    bookingRef: "",
+  });
+  const [ledgerSubmitting, setLedgerSubmitting] = useState(false);
 
   // Verification Review State
   const [inspectUser, setInspectUser] = useState<User | null>(null);
@@ -192,6 +218,14 @@ function AdminDashboardPage() {
         const deletionData = await deletionRes.json();
         setDeletionRequests(deletionData.requests || []);
         setDeletionAudit(deletionData.audit || []);
+      }
+
+      const ledgerRes = await fetch("/api/admin/finance-ledger");
+      if (ledgerRes.ok) {
+        const ledgerData = await ledgerRes.json();
+        setLedger(ledgerData.entries || []);
+        setLedgerCategories(ledgerData.categories || []);
+        setLedgerTotals(ledgerData.totals || { income: 0, expenses: 0, net: 0 });
       }
     } catch (e) {
       console.error(e);
@@ -435,6 +469,60 @@ function AdminDashboardPage() {
       setFeedback({ type: "error", text: error.message || "Network error" });
     } finally {
       setBookingUpdating(null);
+    }
+  };
+
+  const handleLedgerSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const amount = Number(ledgerForm.amountKes);
+    if (!ledgerForm.category.trim() || !ledgerForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
+      setFeedback({ type: "error", text: "Provide a category, description, and a positive amount." });
+      return;
+    }
+    setLedgerSubmitting(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/admin/finance-ledger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...ledgerForm,
+          amountKes: amount,
+          category: ledgerForm.category.trim(),
+          description: ledgerForm.description.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not record the entry." });
+        return;
+      }
+      setFeedback({ type: "success", text: data.message || "Ledger entry recorded." });
+      setLedgerForm((c) => ({ ...c, description: "", amountKes: "", transactionRef: "", bookingRef: "" }));
+      await fetchData();
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error." });
+    } finally {
+      setLedgerSubmitting(false);
+    }
+  };
+
+  const handleLedgerDelete = async (id: string) => {
+    if (!window.confirm("Remove this ledger entry?")) return;
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/admin/finance-ledger?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: "error", text: data.error || "Could not remove the entry." });
+        return;
+      }
+      setFeedback({ type: "success", text: data.message || "Entry removed." });
+      await fetchData();
+    } catch (error: any) {
+      setFeedback({ type: "error", text: error.message || "Network error." });
     }
   };
 
@@ -1432,6 +1520,162 @@ function AdminDashboardPage() {
                 {formatPrice(totalPlatformFees)}
               </span>
             </div>
+          </div>
+
+          {/* ── Manual ledger for off-platform transactions ── */}
+          <div className="rounded-3xl border border-amber-900/70 bg-slate-950 p-6 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-black text-white">Manual Finance Ledger</h3>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Record transactions settled outside the website — cash handed to a worker, direct M-Pesa transfers, bank payments, refunds, or product-purchase reimbursements.
+                </p>
+              </div>
+              <div className="flex gap-3 text-right">
+                <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                  <span className="text-[9px] text-slate-400 font-bold block uppercase">Income</span>
+                  <span className="text-xs font-black text-emerald-400">KSh {ledgerTotals.income.toLocaleString()}</span>
+                </div>
+                <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                  <span className="text-[9px] text-slate-400 font-bold block uppercase">Expense</span>
+                  <span className="text-xs font-black text-rose-400">KSh {ledgerTotals.expenses.toLocaleString()}</span>
+                </div>
+                <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
+                  <span className="text-[9px] text-slate-400 font-bold block uppercase">Net</span>
+                  <span className={`text-xs font-black ${ledgerTotals.net >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    KSh {ledgerTotals.net.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleLedgerSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Type
+                <select
+                  value={ledgerForm.entryType}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, entryType: e.target.value as "income" | "expense" }))}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                >
+                  <option value="income">Income (money in)</option>
+                  <option value="expense">Expense (money out)</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Category
+                <input
+                  required
+                  list="ledger-categories"
+                  value={ledgerForm.category}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, category: e.target.value }))}
+                  placeholder="Cash, M-Pesa, refund…"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                />
+                <datalist id="ledger-categories">
+                  {ledgerCategories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Amount (KSh)
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={ledgerForm.amountKes}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, amountKes: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Date
+                <input
+                  type="date"
+                  value={ledgerForm.occurredOn}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, occurredOn: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300 sm:col-span-2">
+                Description
+                <input
+                  required
+                  value={ledgerForm.description}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, description: e.target.value }))}
+                  placeholder="What was the money for?"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Transaction ref (optional)
+                <input
+                  value={ledgerForm.transactionRef}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, transactionRef: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-bold text-slate-300">
+                Booking ref (optional)
+                <input
+                  value={ledgerForm.bookingRef}
+                  onChange={(e) => setLedgerForm((c) => ({ ...c, bookingRef: e.target.value }))}
+                  placeholder="HLK-26-1234"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-white"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={ledgerSubmitting}
+                className="rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 px-4 py-2.5 text-xs font-bold text-white sm:col-span-2 lg:col-span-4"
+              >
+                {ledgerSubmitting ? "Recording…" : "Record ledger entry"}
+              </button>
+            </form>
+
+            {ledger.length > 0 && (
+              <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900 text-[10px] uppercase text-slate-400">
+                    <tr>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Type</th>
+                      <th className="p-3">Category</th>
+                      <th className="p-3">Description</th>
+                      <th className="p-3">Amount</th>
+                      <th className="p-3">Ref</th>
+                      <th className="p-3">Recorded by</th>
+                      <th className="p-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledger.map((entry) => (
+                      <tr key={entry.id} className="border-t border-slate-800 text-slate-300">
+                        <td className="p-3 whitespace-nowrap">{entry.occurredOn}</td>
+                        <td className={`p-3 font-bold ${entry.entryType === "income" ? "text-emerald-400" : "text-rose-400"}`}>
+                          {entry.entryType}
+                        </td>
+                        <td className="p-3">{entry.category}</td>
+                        <td className="p-3">{entry.description}</td>
+                        <td className="p-3 font-bold whitespace-nowrap">KSh {entry.amountKes.toLocaleString()}</td>
+                        <td className="p-3 text-slate-500">{entry.transactionRef || entry.bookingRef || "—"}</td>
+                        <td className="p-3 text-slate-500">{entry.recordedByName || "—"}</td>
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            onClick={() => handleLedgerDelete(entry.id)}
+                            className="rounded-lg border border-rose-800 px-2 py-1 text-[10px] font-bold text-rose-300 hover:bg-rose-950"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           <form

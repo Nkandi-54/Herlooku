@@ -11,6 +11,7 @@ import {
   EmergencyAlarmType,
   MpesaPayment,
   UserRole,
+  FinanceLedgerEntry,
   hiringFeeUSD,
   EngagementType,
   BookingStatus,
@@ -72,6 +73,8 @@ type BookingRow = {
   worker_expected_daily_salary: number | string;
   worker_expected_monthly_salary: number | string | null;
   total_amount: number | string;
+  childcare_children: number | null;
+  childcare_fee: number | string | null;
   status: BookingStatus;
   escrow_status: EscrowStatus;
   client_address: string;
@@ -182,6 +185,8 @@ function mapBooking(row: BookingRow): Booking {
     workerExpectedDailySalary: Number(row.worker_expected_daily_salary),
     workerExpectedMonthlySalary: Number(row.worker_expected_monthly_salary ?? 0),
     totalAmount: Number(row.total_amount),
+    childcareChildren: row.childcare_children ?? 0,
+    childcareFee: Number(row.childcare_fee ?? 0),
     status: row.status,
     escrowStatus: row.escrow_status,
     clientAddress: row.client_address,
@@ -251,6 +256,8 @@ function toBookingInsert(
     total_days: booking.totalDays,
     engagement_type: booking.engagementType,
     worker_expected_daily_salary: booking.workerExpectedDailySalary,
+    childcare_children: booking.childcareChildren ?? 0,
+    childcare_fee: booking.childcareFee ?? 0,
     client_address: booking.clientAddress,
     special_instructions: booking.specialInstructions ?? null,
     ...overrides,
@@ -607,6 +614,84 @@ class Database {
   ): Promise<void> {
     const sb = createAdminClient();
     const { error } = await sb.from("bookings").update(updates).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  // ── Finance ledger (manual, off-platform transactions) ─────────────────────
+
+  async getFinanceLedger(): Promise<FinanceLedgerEntry[]> {
+    const sb = createAdminClient();
+    const { data, error } = await sb
+      .from("finance_ledger")
+      .select("*, recorded_by:name")  // join profile name via FK relationship
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      // Fallback without the join if the relationship hint fails.
+      const plain = await sb
+        .from("finance_ledger")
+        .select("*")
+        .order("occurred_on", { ascending: false })
+        .limit(500);
+      if (plain.error) throw new Error(plain.error.message);
+      return (plain.data ?? []).map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        entryType: row.entry_type as "income" | "expense",
+        category: String(row.category),
+        description: String(row.description),
+        amountKes: Number(row.amount_kes),
+        occurredOn: String(row.occurred_on),
+        transactionRef: (row.transaction_ref as string) || undefined,
+        bookingRef: (row.booking_ref as string) || undefined,
+        createdAt: String(row.created_at),
+      }));
+    }
+    return (data ?? []).map((row: Record<string, unknown>) => {
+      const recorder = row.recorded_by as { name?: string } | string | null;
+      return {
+        id: String(row.id),
+        entryType: row.entry_type as "income" | "expense",
+        category: String(row.category),
+        description: String(row.description),
+        amountKes: Number(row.amount_kes),
+        occurredOn: String(row.occurred_on),
+        transactionRef: (row.transaction_ref as string) || undefined,
+        bookingRef: (row.booking_ref as string) || undefined,
+        recordedByName:
+          recorder && typeof recorder === "object" ? recorder.name || undefined : undefined,
+        createdAt: String(row.created_at),
+      };
+    });
+  }
+
+  async createFinanceLedgerEntryAsService(input: {
+    entryType: "income" | "expense";
+    category: string;
+    description: string;
+    amountKes: number;
+    occurredOn: string;
+    transactionRef?: string;
+    bookingRef?: string;
+    recordedBy: string;
+  }): Promise<void> {
+    const sb = createAdminClient();
+    const { error } = await sb.from("finance_ledger").insert({
+      entry_type: input.entryType,
+      category: input.category,
+      description: input.description,
+      amount_kes: input.amountKes,
+      occurred_on: input.occurredOn,
+      transaction_ref: input.transactionRef ?? null,
+      booking_ref: input.bookingRef ?? null,
+      recorded_by: input.recordedBy,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteFinanceLedgerEntryAsService(id: string): Promise<void> {
+    const sb = createAdminClient();
+    const { error } = await sb.from("finance_ledger").delete().eq("id", id);
     if (error) throw new Error(error.message);
   }
 
