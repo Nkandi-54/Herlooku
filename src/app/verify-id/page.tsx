@@ -120,7 +120,7 @@ export default function VerifyIdPage() {
       if (res.ok && data?.success && data?.user) {
         setFeedback({
           type: "success",
-          text: tx("Verification submitted successfully! Switch to the Admin persona in the header to approve your ID."),
+          text: tx("Your identity documents were submitted for review."),
         });
         setCurrentUser(data.user);
         window.dispatchEvent(new Event("auth-changed"));
@@ -198,19 +198,15 @@ export default function VerifyIdPage() {
           </div>
 
           <div className="bg-emerald-50/60 rounded-2xl p-4 border border-emerald-100 text-xs text-emerald-900 space-y-2">
-            <span className="font-bold block">{tx("Account Privileges Enabled:")}</span>
+            <span className="font-bold block">{tx("Identity verification complete")}</span>
             <ul className="space-y-1.5 list-disc list-inside text-emerald-800">
               {currentUser.role === "client" ? (
                 <>
-                  <li>{tx("Full permission to book any househelp with exclusive reservation lock.")}</li>
-                  <li>{tx("Access to verified worker telephone and direct contact details upon checkout.")}</li>
-                  <li>{tx("Eligible for Herlooku Task Ninja Till Verification Guarantee.")}</li>
+                  <li>{tx("Your identity is verified. You can now browse worker profiles and request bookings.")}</li>
                 </>
               ) : (
                 <>
-                  <li>{tx("Profile is active and visible in the public helper search directory.")}</li>
-                  <li>{tx("Eligible to receive verified exclusive bookings and direct daily compensation from clients.")}</li>
-                  <li>{tx("Verified badge displayed on your public profile card.")}</li>
+                  <li>{tx("Your identity is verified. Your profile can be listed in the directory when it is complete.")}</li>
                 </>
               )}
             </ul>
@@ -244,24 +240,10 @@ export default function VerifyIdPage() {
 
           <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200 text-xs text-amber-900 space-y-2">
             <p className="leading-relaxed">
-              {tx("Our trust and compliance specialists are reviewing your submitted documents. Verification is usually completed within 30 minutes.")}
+              {tx("Your identity documents are pending review. We’ll update your account when a decision is made.")}
             </p>
-            <div className="pt-2">
-              <p className="font-bold text-amber-950">
-                💡 Evaluating the platform right now? Switch to the &quot;Platform Administrator&quot; persona
-                in the top right to approve this request immediately!
-              </p>
-            </div>
           </div>
 
-          <div className="flex gap-4">
-            <Link
-              href="/admin/verifications"
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
-            >
-              {t("copy:View Admin Review Queue →")}
-            </Link>
-          </div>
         </div>
       )}
 

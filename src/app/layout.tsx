@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s · Herlooku Task Ninja",
   },
   description:
-    "Hire trusted, ID-verified domestic helpers with guaranteed exclusive bookings and verified direct Till payments. Ninja-quiet scheduling, zero double-bookings.",
+    "Browse household workers, compare services and availability, and review hiring fees before booking.",
   keywords: [
     "househelp",
     "verified nanny",
@@ -44,7 +44,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className="h-full flex flex-col antialiased bg-sky-50/40 text-slate-900 font-sans">
+      <body className="h-full flex flex-col antialiased bg-slate-50 text-slate-900 font-sans">
         <LanguageProvider>
           <CurrencyProvider>
             <AdminLanguageGuard />

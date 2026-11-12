@@ -213,7 +213,7 @@ export default function AdminPortalLayout({
               <Headphones size={12} />
               <span>Nairobi Dispatch Desk</span>
             </span>
-            <span className="font-mono text-slate-300 font-bold">24/7 Priority</span>
+            <span className="font-mono text-slate-300 font-bold">Operations</span>
           </div>
         </div>
       </aside>

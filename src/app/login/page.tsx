@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -13,7 +14,6 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { NinjaAvatar } from "@/components/NinjaAvatar";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 function LoginForm() {
@@ -140,42 +140,34 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
-      {/* Ambient glow orbs */}
-      <div className="absolute top-[-200px] left-[-100px] w-[600px] h-[600px] rounded-full bg-brand-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-200px] right-[-100px] w-[500px] h-[500px] rounded-full bg-cyan-500/8 blur-[100px] pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
         {/* Brand mark */}
         <div className="flex flex-col items-center mb-8">
           <Link href="/" className="flex items-center gap-3 group mb-6">
-            <NinjaAvatar
-              className="w-14 h-14 rounded-2xl shadow-[0_0_40px_-10px_rgba(14,165,233,0.6)] group-hover:scale-105 transition-transform duration-300"
-              glyphClassName="w-9 h-9"
-              animated
+            <Image
+              src="/herlooku-brand.png"
+              alt="Herlooku Task Ninja"
+              width={440}
+              height={290}
+              className="h-20 w-32 object-contain"
             />
-            <div>
-              <span className="text-2xl font-black tracking-tight text-white whitespace-nowrap">Her<span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">looku</span></span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-0.5">
-                {t("common.brandTagline")}
-              </p>
-            </div>
           </Link>
-          <h1 className="text-2xl font-black text-white text-center">
+          <h1 className="text-2xl font-bold text-slate-900 text-center">
             {tx("Welcome back")}
           </h1>
-          <p className="text-sm text-slate-400 mt-1 text-center">
+          <p className="text-sm text-slate-600 mt-1 text-center">
             {tx("Sign in to your Herlooku account")}
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Confirmed Notice */}
             {isConfirmed && (
-              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-semibold flex items-center gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
                 <span>
                   {tx(
                     "Your email has been confirmed! Please sign in to access your dashboard.",
@@ -186,7 +178,7 @@ function LoginForm() {
 
             {/* Email */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                 {tx("Email Address")}
               </label>
               <div className="relative">
@@ -201,7 +193,7 @@ function LoginForm() {
                   onChange={set("email")}
                   placeholder="you@example.com"
                   aria-label={tx("Email Address")}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-500/50 transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                 />
               </div>
             </div>
@@ -209,10 +201,10 @@ function LoginForm() {
             {/* Password */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   {tx("Password")}
                 </label>
-                <span className="text-[11px] text-brand-400 font-semibold">
+                <span className="text-[11px] text-slate-500 font-medium">
                   {tx("Use your account password")}
                 </span>
               </div>
@@ -228,13 +220,13 @@ function LoginForm() {
                   onChange={set("password")}
                   placeholder={tx("Enter your password")}
                   aria-label={tx("Password")}
-                  className="w-full pl-10 pr-12 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 focus:border-brand-500/50 transition-all"
+                  className="w-full pl-10 pr-12 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
                   aria-label={tx(showPw ? "Hide password" : "Show password")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 transition-colors"
                 >
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -243,14 +235,14 @@ function LoginForm() {
                 <button
                   type="button"
                   onClick={() => openHelp("resend")}
-                  className="text-[11px] font-bold text-slate-400 hover:text-brand-300 transition-colors"
+                  className="text-[11px] font-semibold text-slate-600 hover:text-brand-800 transition-colors"
                 >
                   {tx("Email not confirmed? Resend link")}
                 </button>
                 <button
                   type="button"
                   onClick={() => openHelp("forgot")}
-                  className="text-[11px] font-bold text-brand-400 hover:text-brand-300 transition-colors"
+                  className="text-[11px] font-semibold text-brand-800 hover:text-brand-900 transition-colors"
                 >
                   {tx("Forgot password?")}
                 </button>
@@ -259,9 +251,9 @@ function LoginForm() {
 
             {/* Recovery panel: reset link or re-send confirmation */}
             {helpMode && (
-              <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 space-y-3">
+              <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs font-black uppercase tracking-wider text-brand-300">
+                  <p className="text-xs font-bold uppercase tracking-wider text-brand-800">
                     {helpMode === "forgot"
                       ? tx("Reset your password")
                       : tx("Resend confirmation link")}
@@ -270,12 +262,12 @@ function LoginForm() {
                     type="button"
                     onClick={() => setHelpMode(null)}
                     aria-label={tx("Close")}
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                    className="text-slate-500 hover:text-slate-800 transition-colors"
                   >
                     <X size={14} />
                   </button>
                 </div>
-                <p className="text-[11px] leading-relaxed text-slate-400">
+                <p className="text-[11px] leading-relaxed text-slate-600">
                   {helpMode === "forgot"
                     ? tx("Enter the email you registered with and we will send you a link to choose a new password.")
                     : tx("Enter the email you registered with and we will send a fresh confirmation link. You cannot sign in until it is opened.")}
@@ -284,7 +276,7 @@ function LoginForm() {
                   type="button"
                   onClick={sendHelp}
                   disabled={helpLoading}
-                  className="w-full rounded-xl border border-brand-400/50 bg-brand-500/15 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-brand-200 hover:bg-brand-500/25 hover:border-brand-300/70 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  className="w-full rounded-lg border border-brand-300 bg-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-brand-800 hover:bg-brand-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                 >
                   {helpLoading
                     ? tx("Sending…")
@@ -293,7 +285,7 @@ function LoginForm() {
                       : tx("Send confirmation link")}
                 </button>
                 {helpError && (
-                  <p className="text-[11px] font-semibold text-rose-400">{helpError}</p>
+                  <p className="text-[11px] font-semibold text-rose-700">{helpError}</p>
                 )}
               </div>
             )}
@@ -301,7 +293,7 @@ function LoginForm() {
             {helpMessage && (
               <div
                 role="status"
-                className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-semibold"
+                className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold"
               >
                 {helpMessage}
               </div>
@@ -309,7 +301,7 @@ function LoginForm() {
 
             {/* Error */}
             {error && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-semibold">
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
                 {error}
               </div>
             )}
@@ -318,7 +310,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm tracking-wide shadow-[0_0_25px_-8px_rgba(14,165,233,0.6)] hover:shadow-[0_0_35px_-8px_rgba(14,165,233,0.8)] transition-all flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3 rounded-lg bg-brand-700 hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (
                 <>
@@ -340,7 +332,7 @@ function LoginForm() {
             {tx("New to Herlooku?")}{" "}
             <Link
               href="/register"
-              className="text-brand-400 font-bold hover:text-brand-300 transition-colors"
+              className="text-brand-800 font-semibold hover:text-brand-900 transition-colors"
             >
               {tx("Create an account →")}
             </Link>
@@ -359,7 +351,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
         </div>
       }

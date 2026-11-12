@@ -1,860 +1,124 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
-  Store,
-  Shirt,
-  Footprints,
-  BedDouble,
-  WashingMachine,
-  Coffee,
-  MapPin,
-  Phone,
-  MessageCircle,
-  ArrowRight,
   ArrowUpRight,
-  CheckCircle2,
-  Sparkles,
-  Scale,
-  Truck,
-  Quote,
-  Mail,
+  Building2,
+  Home,
+  Instagram,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Store,
 } from "lucide-react";
-import { useCurrency } from "@/context/CurrencyContext";
-import { KES_PER_USD } from "@/types";
+import { useLanguage } from "@/i18n/LanguageContext";
 
-/** Transparent pink Herlooku Island badge — see public/. */
-const ISLAND_LOGO = "/herkolu-island-logo.png";
+const PHONE_NUMBER = "+254740042359";
+const WHATSAPP_URL = `https://wa.me/${PHONE_NUMBER.slice(1)}?text=${encodeURIComponent(
+  "Hi Herlooku Task Ninja, I would like to ask about your cleaning services.",
+)}`;
+const INSTAGRAM_URL = "https://instagram.com/herlooku.taskninja";
 
-const OWNER_PHONE = "+254 740 042359";
-const OWNER_EMAIL = "herlookutaskninja@gmail.com";
+export default function CleaningServicesPage() {
+  const { t } = useLanguage();
+  const tx = (copy: string) => t(`copy:${copy}`);
 
-/** WhatsApp needs digits only, without the leading `+` or any spaces. */
-const WHATSAPP_NUMBER = OWNER_PHONE.replace(/[^\d]/g, "");
-
-/**
- * Build a wa.me deep link that opens WhatsApp with a ready-to-send message.
- * The recipient still has to press send — this only pre-fills the chat.
- */
-const whatsappHref = (message: string) =>
-  `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-
-/** Pre-filled order message for a single catalogue item. */
-const orderMessage = (item: string, category: string) =>
-  `Hi Herlooku! I'd like to order:\n\n• Item: ${item}\n• Category: ${category}\n• Quantity: \n\nPlease confirm the price and availability. Thank you!`;
-
-/** Pre-filled request for a laundry pickup, including the live estimate. */
-const laundryMessage = (kgs: number, ironing: boolean, kes: number) =>
-  `Hi Herlooku! I'd like to book a laundry pickup.\n\n• Load: ${kgs} kg\n• Wash, dry & fold: Ksh ${(kgs * LAUNDRY_RATE_KES).toLocaleString()}\n• Ironing: ${ironing ? `Yes — Ksh ${(kgs * IRONING_RATE_KES).toLocaleString()}` : "No"}\n• Estimated total: Ksh ${kes.toLocaleString()}\n• Pickup area: Mombasa — \n\nPlease confirm a collection time. Thank you!`;
-
-const CONTACTS = [
-  {
-    label: "WhatsApp",
-    value: OWNER_PHONE,
-    href: whatsappHref(
-      "Hi Herlooku! I'd like to place an order.",
-    ),
-    icon: Phone,
-  },
-  {
-    label: "Call",
-    value: OWNER_PHONE,
-    href: `tel:${OWNER_PHONE.replace(/\s/g, "")}`,
-    icon: Phone,
-  },
-  {
-    label: "Location",
-    value: "Mombasa, Kenya",
-    href: "#laundry",
-    icon: MapPin,
-  },
-  {
-    label: "Email",
-    value: OWNER_EMAIL,
-    href: `mailto:${OWNER_EMAIL}`,
-    icon: Mail,
-  },
-];
-
-/** Ksh 100 per kilogram of laundry. */
-const LAUNDRY_RATE_KES = 100;
-/** Optional ironing service per kilogram, in addition to laundry. */
-const IRONING_RATE_KES = 300;
-
-type Category = "all" | "snacks" | "clothes" | "shoes" | "beddings";
-
-interface ShopItem {
-  name: string;
-  detail: string;
-  priceKes?: number;
-  category: Exclude<Category, "all">;
-}
-
-const CATALOG: ShopItem[] = [
-  // Coastal snacks
-  {
-    name: "Pweza (Octopus) Snack Pack",
-    detail: "Spiced coastal octopus, freshly prepared.",
-    category: "snacks",
-  },
-  {
-    name: "Viazi Karai & Ukwaju",
-    detail: "Golden potato fritters with tamarind sauce.",
-    category: "snacks",
-  },
-  {
-    name: "Bhajia za Mombasa",
-    detail: "Crisp spiced bhajia with chutney.",
-    category: "snacks",
-  },
-  {
-    name: "Mkate wa Sinia",
-    detail: "Traditional coastal coconut bread.",
-    category: "snacks",
-  },
-  {
-    name: "Kaimati (Halwa)",
-    detail: "Sweet cardamom dumplings in syrup.",
-    category: "snacks",
-  },
-  {
-    name: "Tamarind & Coconut Bites",
-    detail: "Coastal sweets by the pack.",
-    category: "snacks",
-  },
-  // Ladies clothes
-  {
-    name: "Kanga & Kikoi Sets",
-    detail: "Authentic coastal wraps in everyday and gift sizes.",
-    category: "clothes",
-  },
-  {
-    name: "Kitenge Dresses",
-    detail: "Tailored ladies' dresses in classic coastal prints.",
-    category: "clothes",
-  },
-  {
-    name: "Abaya & Kaftan",
-    detail: "Modest everyday and occasion wear.",
-    category: "clothes",
-  },
-  {
-    name: "Shorts, Tops & Blouses",
-    detail: "Lightweight, beach-friendly ladies' wear.",
-    category: "clothes",
-  },
-  // Shoes
-  {
-    name: "Ladies Sandals",
-    detail: "Comfortable coastal sandals.",
-    category: "shoes",
-  },
-  { name: "Heels & Wedges", detail: "Occasion footwear.", category: "shoes" },
-  {
-    name: "Slippers & Beach Shoes",
-    detail: "Everyday casual footwear.",
-    category: "shoes",
-  },
-  // Beddings
-  {
-    name: "Bed Sheets",
-    detail: "Single, double and queen sizes.",
-    category: "beddings",
-  },
-  {
-    name: "Duvet Covers",
-    detail: "Soft, breathable covers for coastal weather.",
-    category: "beddings",
-  },
-  {
-    name: "Pillowcases & Pillows",
-    detail: "Cotton pillow sets.",
-    category: "beddings",
-  },
-  {
-    name: "Mosquito Nets",
-    detail: "Treated nets, family and single sizes.",
-    category: "beddings",
-  },
-];
-
-const SECTIONS = [
-  {
-    key: "snacks",
-    label: "Coastal Snacks",
-    icon: Coffee,
-    blurb: "Fresh local favourites and traditional bites.",
-  },
-  {
-    key: "clothes",
-    label: "Ladies Clothes",
-    icon: Shirt,
-    blurb: "Kanga, kitenge, abaya and everyday wear.",
-  },
-  {
-    key: "shoes",
-    label: "Shoes",
-    icon: Footprints,
-    blurb: "Sandals, heels and beach footwear.",
-  },
-  {
-    key: "beddings",
-    label: "Beddings",
-    icon: BedDouble,
-    blurb: "Sheets, duvets, pillows and nets.",
-  },
-] as const;
-
-/** Per-category accent so each shelf feels distinct inside the pink family. */
-const SECTION_ACCENT: Record<
-  Exclude<Category, "all">,
-  { ring: string; wash: string; icon: string; glow: string; text: string }
-> = {
-  snacks: {
-    ring: "hover:border-rose-300",
-    wash: "from-rose-50 via-white to-white",
-    icon: "from-rose-100 to-rose-50 text-rose-600 ring-rose-200",
-    glow: "bg-rose-400/20",
-    text: "text-rose-600",
-  },
-  clothes: {
-    ring: "hover:border-pink-300",
-    wash: "from-pink-50 via-white to-white",
-    icon: "from-pink-100 to-pink-50 text-pink-600 ring-pink-200",
-    glow: "bg-pink-400/20",
-    text: "text-pink-600",
-  },
-  shoes: {
-    ring: "hover:border-fuchsia-300",
-    wash: "from-fuchsia-50 via-white to-white",
-    icon: "from-fuchsia-100 to-fuchsia-50 text-fuchsia-600 ring-fuchsia-200",
-    glow: "bg-fuchsia-400/20",
-    text: "text-fuchsia-600",
-  },
-  beddings: {
-    ring: "hover:border-violet-300",
-    wash: "from-violet-50 via-white to-white",
-    icon: "from-violet-100 to-violet-50 text-violet-600 ring-violet-200",
-    glow: "bg-violet-400/20",
-    text: "text-violet-600",
-  },
-};
-
-const SECTION_ICON: Record<Exclude<Category, "all">, typeof Coffee> = {
-  snacks: Coffee,
-  clothes: Shirt,
-  shoes: Footprints,
-  beddings: BedDouble,
-};
-
-/**
- * Faded Herlooku Island badge used as an ambient watermark behind cards.
- *
- * A few things are deliberate here, because this is easy to get subtly wrong:
- *
- *  - The artwork is line-heavy, so it needs to be reasonably large to read at
- *    all. Shrinking it below ~5rem turns it into an anonymous pink smudge.
- *  - It sits at z-0 with every piece of card content `relative`, so the copy
- *    always paints on top and nothing needs a blend mode.
- *  - The mask feathers only the outer edge: enough to blend the disc into the
- *    card, not enough to erase the palm and the wordmark.
- *  - By default it is centred across the whole card (`inset-0 m-auto`). A
- *    corner placement is fine on tall cards, but on short ones a corner is
- *    usually already occupied by a button or a price, so prefer centred.
- */
-const LogoWatermark: React.FC<{
-  /** Rendered size, e.g. "w-40 h-40". */
-  size?: string;
-  /** Positioning classes; defaults to a full-bleed, centred backdrop. */
-  corner?: string;
-  /** Opacity at rest, as a Tailwind class (e.g. "opacity-[0.12]"). */
-  opacity?: string;
-  /** Extra classes, e.g. a blur amount. */
-  className?: string;
-}> = ({
-  size = "w-40 h-40",
-  corner = "inset-0 m-auto",
-  opacity = "opacity-[0.03]",
-  className = "",
-}) => (
-  <span
-    aria-hidden
-    className={`pointer-events-none absolute z-0 flex items-center justify-center select-none ${corner} ${size} ${opacity} transition-opacity duration-500 ease-out group-hover:opacity-[0.07] ${className}`}
-    style={{
-      // Fade the disc out before its own edge so no card corner or border can
-      // slice a straight line through the artwork.
-      WebkitMaskImage:
-        "radial-gradient(circle at 50% 50%, black 0%, black 45%, transparent 80%)",
-      maskImage:
-        "radial-gradient(circle at 50% 50%, black 0%, black 45%, transparent 80%)",
-    }}
-  >
-    <Image
-      src={ISLAND_LOGO}
-      alt=""
-      width={360}
-      height={360}
-      sizes="360px"
-      className="w-full h-full object-contain"
-    />
-  </span>
-);
-
-export default function ShopPage() {
-  const { formatPrice } = useCurrency();
-  const [category, setCategory] = useState<Category>("all");
-  const [kilos, setKilos] = useState<number>(5);
-  const [includeIroning, setIncludeIroning] = useState(false);
-
-  const items = useMemo(
-    () =>
-      category === "all"
-        ? CATALOG
-        : CATALOG.filter((item) => item.category === category),
-    [category],
-  );
-
-  const safeKilos = Math.max(1, Math.min(40, Math.floor(kilos || 1)));
-  const laundryKes = safeKilos * LAUNDRY_RATE_KES;
-  const ironingKes = includeIroning ? safeKilos * IRONING_RATE_KES : 0;
-  const totalLaundryKes = laundryKes + ironingKes;
-
-  const orderHref = (item: string, categoryLabel: string) =>
-    whatsappHref(orderMessage(item, categoryLabel));
+  const services = [
+    { title: tx("Home cleaning"), icon: Home },
+    { title: tx("Office cleaning"), icon: Building2 },
+    { title: tx("Commercial space cleaning"), icon: Store },
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
-      {/* ─── Hero ───────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-rose-950 via-slate-900 to-slate-950 border border-rose-500/25 p-6 sm:p-10 shadow-[0_30px_80px_-40px_rgba(236,72,153,0.55)]">
-        {/* Ambient rose glows */}
-        <div className="absolute -top-24 -right-16 w-80 h-80 rounded-full bg-rose-500/25 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-28 left-1/4 w-72 h-72 rounded-full bg-pink-500/15 blur-3xl pointer-events-none" />
-        {/* Faint island horizon texture */}
-        <svg
-          aria-hidden
-          viewBox="0 0 400 120"
-          preserveAspectRatio="none"
-          className="absolute inset-x-0 bottom-0 h-24 w-full text-rose-300/[0.07] pointer-events-none"
-        >
-          <path
-            d="M0 80 Q 60 60 120 78 T 240 74 T 360 82 T 400 76 V120 H0 Z"
-            fill="currentColor"
-          />
-          <path
-            d="M0 96 Q 70 82 140 94 T 280 92 T 400 96 V120 H0 Z"
-            fill="currentColor"
-            opacity="0.7"
-          />
-        </svg>
-
-        <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="max-w-3xl space-y-4 min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full bg-rose-500/15 border border-rose-400/35 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-rose-200">
-              <Store size={13} />
-              Herlooku Island · Mombasa
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Coastal snacks, ladies&apos; clothes, shoes and beddings — plus
-              laundry at Ksh {LAUNDRY_RATE_KES} per kg
-            </h1>
-            <p className="text-sm text-rose-50/75 leading-relaxed">
-              Run by the Herlooku web owner in Mombasa. Order anything on this
-              page, or bring us your washing — we charge Ksh {LAUNDRY_RATE_KES}{" "}
-              for every kilogram, wash, dry and fold included.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <a
-                href={whatsappHref(
-                  "Hi Herlooku! I'd like to place an order.\n\n• Items: \n• Quantity: \n• Delivery area: Mombasa — \n\nPlease confirm the price and availability. Thank you!",
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-400 to-pink-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-rose-950 shadow-lg shadow-rose-500/30 hover:from-rose-300 hover:to-pink-400 transition-all"
-              >
-                <MessageCircle size={14} />
-                Order on WhatsApp
-                <ArrowRight size={14} />
-              </a>
-              <a
-                href="#laundry"
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-200/25 bg-white/[0.06] hover:bg-white/[0.12] px-5 py-3 text-xs font-bold text-white transition-colors"
-              >
-                <WashingMachine size={14} />
-                Laundry pricing
-              </a>
-            </div>
-          </div>
-
-          {/* Pink Herlooku Island logo — seated on a light disc so the
-              magenta artwork keeps its contrast against the rose hero. */}
-          <div className="relative shrink-0 self-center justify-self-center lg:justify-self-end">
-            {/* Outer bloom */}
-            <div className="absolute inset-2 rounded-full bg-pink-400/35 blur-[38px] pointer-events-none" />
-            <div className="relative rounded-full bg-gradient-to-br from-white via-rose-50 to-rose-200 p-2.5 shadow-[0_24px_60px_-18px_rgba(190,18,60,0.8)] ring-1 ring-white/60">
-              <div className="rounded-full bg-rose-50 overflow-hidden">
-                <Image
-                  src={ISLAND_LOGO}
-                  alt="Herlooku Island — coastal store and laundry in Mombasa"
-                  width={260}
-                  height={260}
-                  priority
-                  sizes="(min-width: 1024px) 256px, 192px"
-                  className="w-44 h-44 sm:w-48 sm:h-48 lg:w-64 lg:h-64 object-contain select-none"
-                />
-              </div>
-              {/* Inner rim light */}
-              <div className="pointer-events-none absolute inset-2.5 rounded-full ring-1 ring-rose-300/50" />
-            </div>
-            <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-rose-950/90 border border-rose-300/35 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-rose-100 shadow-lg">
-              <MapPin size={8} /> Mombasa
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Contact strip ──────────────────────────────────────── */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {CONTACTS.map((c) => {
-          const Icon = c.icon;
-          return (
+    <div className="section space-y-10 py-10 sm:py-14">
+      <section className="grid items-center gap-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10 lg:grid-cols-[1fr_auto]">
+        <div className="max-w-2xl space-y-5">
+          <p className="eyebrow">{tx("Professional cleaning services")}</p>
+          <h1 className="display-1 text-4xl text-slate-900 sm:text-5xl">
+            {tx("For homes, offices and commercial spaces.")}
+          </h1>
+          <p className="text-base text-slate-600">
+            {tx("Clean spaces. Fresh vibes. Every time.")}
+          </p>
+          <p className="flex items-center gap-2 text-sm text-slate-600">
+            <MapPin size={16} className="text-brand-700" />
+            {tx("Mombasa and surrounding areas")}
+          </p>
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row">
             <a
-              key={c.label}
-              href={c.href}
-              className="group relative overflow-hidden flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition-all duration-300 hover:border-rose-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(244,63,94,0.45)]"
-            >
-              <LogoWatermark
-                corner="right-4 top-4"
-                size="w-24 h-24"
-                opacity="opacity-[0.07]"
-              />
-              <span className="pointer-events-none absolute -right-8 -top-8 w-24 h-24 rounded-full bg-rose-400/15 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 ring-1 ring-rose-200 text-rose-600 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105">
-                <Icon size={17} />
-              </span>
-              <span className="relative min-w-0">
-                <span className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  {c.label}
-                </span>
-                <span className="block text-sm font-bold text-slate-900 truncate">
-                  {c.value}
-                </span>
-              </span>
-            </a>
-          );
-        })}
-      </section>
-
-      {/* ─── Catalogue ──────────────────────────────────────────── */}
-      <section className="space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCategory("all")}
-            aria-pressed={category === "all"}
-            className={`rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 ${
-              category === "all"
-                ? "bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30"
-                : "bg-white border border-slate-200 text-slate-600 shadow-soft hover:text-rose-600 hover:border-rose-300"
-            }`}
-          >
-            Everything
-          </button>
-          {SECTIONS.map((s) => {
-            const Icon = s.icon;
-            const active = category === s.key;
-            return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setCategory(s.key)}
-                aria-pressed={active}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all duration-200 ${
-                  active
-                    ? "bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30"
-                    : "bg-white border border-slate-200 text-slate-600 shadow-soft hover:text-rose-600 hover:border-rose-300"
-                }`}
-              >
-                <Icon size={14} />
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Category tiles */}
-        {category === "all" && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {SECTIONS.map((s) => {
-              const Icon = s.icon;
-              const accent = SECTION_ACCENT[s.key];
-              return (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => setCategory(s.key)}
-                  className={`group relative flex flex-col overflow-hidden text-left rounded-2xl border border-slate-200 bg-white p-4 pb-5 shadow-soft transition-all duration-300 ${accent.ring} hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(244,63,94,0.5)]`}
-                >
-                  <LogoWatermark
-                    corner="right-4 top-4"
-                    size="w-24 h-24"
-                    opacity="opacity-[0.07]"
-                  />
-                  <span
-                    className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent.wash} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                  />
-                  <span
-                    className={`pointer-events-none absolute -right-10 -bottom-10 w-28 h-28 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${accent.glow}`}
-                  />
-                  <span className="relative flex items-start justify-between">
-                    <span
-                      className={`w-10 h-10 rounded-xl bg-gradient-to-br ring-1 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${accent.icon}`}
-                    >
-                      <Icon size={18} />
-                    </span>
-                    <ArrowUpRight
-                      size={15}
-                      className="text-slate-300 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-rose-500"
-                    />
-                  </span>
-                  <span className="relative block mt-3 text-sm font-bold text-slate-900">
-                    {s.label}
-                  </span>
-                  <span className="relative block text-[11px] text-slate-500 leading-relaxed mt-1">
-                    {s.blurb}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Product cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item) => {
-            const Icon = SECTION_ICON[item.category];
-            const accent = SECTION_ACCENT[item.category];
-            const label =
-              SECTIONS.find((s) => s.key === item.category)?.label ?? "";
-            return (
-              <article
-                key={item.name}
-                className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 flex flex-col gap-3 shadow-soft transition-all duration-300 ${accent.ring} hover:-translate-y-1 hover:shadow-[0_28px_60px_-32px_rgba(244,63,94,0.5)]`}
-              >
-                {/* Oversized, blurred brand badge sitting low and right, well
-                    away from the title, copy and price row — it reads as a
-                    background impression rather than another card element. */}
-                <LogoWatermark
-                  corner="inset-0 m-auto"
-                  size="w-40 h-40"
-                  opacity="opacity-[0.04]"
-                  className="blur-[1px]"
-                />
-                <span
-                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent.wash} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                />
-                <span
-                  className={`pointer-events-none absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl opacity-0 group-hover:opacity-80 transition-opacity duration-500 ${accent.glow}`}
-                />
-                {/* Top accent hairline */}
-                <span className={`pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent ${accent.text} to-transparent opacity-0 group-hover:opacity-40 transition-opacity duration-300`} />
-
-                <div className="relative space-y-2.5">
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`w-9 h-9 rounded-xl bg-gradient-to-br ring-1 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${accent.icon}`}
-                    >
-                      <Icon size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <span className={`block text-[9px] font-black uppercase tracking-[0.14em] ${accent.text}`}>
-                        {label}
-                      </span>
-                      <h3 className="text-sm font-bold text-slate-900 leading-snug">
-                        {item.name}
-                      </h3>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {item.detail}
-                  </p>
-                </div>
-
-                <div className="relative mt-auto flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                  <span
-                    className={
-                      item.priceKes
-                        ? "text-sm font-black text-slate-900"
-                        : "text-[11px] font-semibold text-slate-400"
-                    }
-                  >
-                    {item.priceKes
-                      ? formatPrice(item.priceKes / KES_PER_USD)
-                      : "Price on request"}
-                  </span>
-                  <a
-                    href={orderHref(item.name, label)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Order ${item.name} on WhatsApp`}
-                    className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-700 hover:bg-rose-500 hover:border-rose-500 hover:text-white transition-colors"
-                  >
-                    <MessageCircle size={11} />
-                    Order
-                  </a>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ─── Laundry ────────────────────────────────────────────── */}
-      <section
-        id="laundry"
-        className="relative isolate overflow-hidden scroll-mt-24 rounded-[2rem] border border-sky-200 bg-slate-950 p-6 text-white shadow-[0_30px_80px_-40px_rgba(2,132,199,0.55)] sm:p-9"
-      >
-        <div className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-cyan-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 left-1/4 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl" />
-        <div className="relative grid gap-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">
-              <WashingMachine size={13} />
-              Herlooku Laundry · Mombasa
-            </div>
-            <div className="space-y-3">
-              <h2 className="max-w-2xl text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-                Fresh, folded and ready to wear.
-              </h2>
-              <p className="max-w-xl text-sm leading-relaxed text-slate-300">
-                We wash, dry and neatly fold your laundry, with optional
-                professional ironing for a crisp finish. We weigh your load
-                together and confirm the price before we begin.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                <WashingMachine size={18} className="mb-3 text-cyan-300" />
-                <p className="text-xs font-bold text-white">Wash, dry & fold</p>
-                <p className="mt-1 text-2xl font-black text-cyan-200">
-                  Ksh {LAUNDRY_RATE_KES}
-                  <span className="ml-1 text-xs font-semibold text-slate-400">/ kg</span>
-                </p>
-                <p className="mt-1 text-[11px] text-slate-400">Standard laundry service</p>
-              </div>
-              <div className="rounded-2xl border border-amber-300/20 bg-amber-200/[0.07] p-4">
-                <Shirt size={18} className="mb-3 text-amber-300" />
-                <p className="text-xs font-bold text-white">Optional ironing</p>
-                <p className="mt-1 text-2xl font-black text-amber-200">
-                  + Ksh {IRONING_RATE_KES}
-                  <span className="ml-1 text-xs font-semibold text-slate-400">/ kg</span>
-                </p>
-                <p className="mt-1 text-[11px] text-slate-400">Add ironing to your laundry order</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-white/10 bg-white p-5 text-slate-900 shadow-2xl sm:p-6">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-black">Estimate your order</p>
-                <p className="mt-1 text-xs text-slate-500">Choose a load size and add ironing if needed.</p>
-              </div>
-              <span className="rounded-xl bg-sky-50 p-2.5 text-sky-700">
-                <Scale size={18} />
-              </span>
-            </div>
-            <label htmlFor="laundry-kilos" className="mb-2 block text-xs font-bold text-slate-700">
-              Laundry weight
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                id="laundry-kilos"
-                type="range"
-                min={1}
-                max={40}
-                value={safeKilos}
-                onChange={(event) => setKilos(Number(event.target.value))}
-                className="min-w-0 flex-1 accent-sky-600"
-              />
-              <input
-                type="number"
-                min={1}
-                max={40}
-                step={1}
-                value={kilos}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  setKilos(
-                    Number.isFinite(value)
-                      ? Math.min(40, Math.max(1, Math.floor(value)))
-                      : 1,
-                  );
-                }}
-                aria-label="Kilograms of laundry"
-                className="w-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-bold"
-              />
-              <span className="text-xs font-bold text-slate-500">kg</span>
-            </div>
-            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100/70">
-              <input
-                type="checkbox"
-                checked={includeIroning}
-                onChange={(event) => setIncludeIroning(event.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-amber-600"
-              />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                  <Shirt size={14} className="text-amber-700" />
-                  Add ironing
-                </span>
-                <span className="mt-1 block text-[11px] text-slate-600">
-                  Ksh {IRONING_RATE_KES} extra per kg · optional
-                </span>
-              </span>
-              <span className="whitespace-nowrap text-xs font-black text-amber-800">
-                + Ksh {(safeKilos * IRONING_RATE_KES).toLocaleString()}
-              </span>
-            </label>
-
-            <div className="mt-5 space-y-2 rounded-2xl bg-slate-50 p-4">
-              <div className="flex justify-between gap-3 text-xs text-slate-600">
-                <span>Wash, dry & fold · {safeKilos} kg × Ksh {LAUNDRY_RATE_KES}</span>
-                <span className="font-bold text-slate-900">Ksh {laundryKes.toLocaleString()}</span>
-              </div>
-              {includeIroning && (
-                <div className="flex justify-between gap-3 text-xs text-slate-600">
-                  <span>Ironing · {safeKilos} kg × Ksh {IRONING_RATE_KES}</span>
-                  <span className="font-bold text-slate-900">Ksh {ironingKes.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex items-end justify-between gap-3 border-t border-slate-200 pt-3">
-                <span className="text-xs font-bold text-slate-600">Estimated total</span>
-                <span className="text-right">
-                  <span className="block text-xl font-black text-slate-950">
-                    Ksh {totalLaundryKes.toLocaleString()}
-                  </span>
-                  <span className="block text-[10px] font-semibold text-slate-500">
-                    ≈ {formatPrice(totalLaundryKes / KES_PER_USD)}
-                  </span>
-                </span>
-              </div>
-            </div>
-            <a
-              href={whatsappHref(laundryMessage(safeKilos, includeIroning, totalLaundryKes))}
+              href={WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 px-5 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-sky-700/25 transition-all hover:-translate-y-0.5 hover:from-sky-500 hover:to-blue-600"
+              className="btn-primary"
             >
-              <MessageCircle size={15} />
-              Book laundry pickup
-              <ArrowUpRight size={14} />
+              <MessageCircle size={16} />
+              {tx("Request a cleaning quote")}
+              <ArrowUpRight size={15} />
             </a>
-            <p className="mt-3 text-center text-[10px] leading-relaxed text-slate-500">
-              Estimate is based on your selected weight. Final price is confirmed
-              after weighing in person. Minimum charge: 1 kg.
-            </p>
+            <a href={`tel:${PHONE_NUMBER}`} className="btn-secondary">
+              <Phone size={16} />
+              {tx("Call")} +254 740 042359
+            </a>
           </div>
         </div>
 
-        <div className="relative mt-8 grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
-          {[
-            { icon: Phone, title: "Schedule a pickup", body: "Call or WhatsApp to choose a convenient collection time." },
-            { icon: Scale, title: "Weigh together", body: "Your final weight and total are confirmed before work starts." },
-            { icon: Truck, title: "Clean clothes returned", body: "Laundry is usually ready in 24–48 hours across Mombasa." },
-          ].map((step) => {
-            const Icon = step.icon;
-            return (
-              <div key={step.title} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <Icon size={16} className="mt-0.5 shrink-0 text-cyan-300" />
-                <div>
-                  <p className="text-xs font-bold text-white">{step.title}</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{step.body}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <Image
+          src="/herlooku-brand.png"
+          alt="Herlooku Task Ninja — Clean spaces, fresh vibes, every time"
+          width={440}
+          height={290}
+          className="mx-auto h-auto w-56 sm:w-64 lg:w-72"
+          priority
+        />
       </section>
 
-      {/* ─── Trust cards ────────────────────────────────────────── */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {[
-          {
-            icon: CheckCircle2,
-            title: "Local to Mombasa",
-            body: "Snacks, clothing, beddings and laundry handled from Mombasa.",
-            tint: "text-emerald-600",
-            ring: "ring-emerald-200",
-            bg: "bg-emerald-50",
-            hover: "hover:border-emerald-300",
-          },
-          {
-            icon: Sparkles,
-            title: "Confirmed before payment",
-            body: "You are told the exact total before anything is paid.",
-            tint: "text-rose-600",
-            ring: "ring-rose-200",
-            bg: "bg-rose-50",
-            hover: "hover:border-rose-300",
-          },
-          {
-            icon: Quote,
-            title: "Paying the owner directly",
-            body: "Store and laundry payments go to the owner of the site.",
-            tint: "text-sky-600",
-            ring: "ring-sky-200",
-            bg: "bg-sky-50",
-            hover: "hover:border-sky-300",
-          },
-        ].map((c) => {
-          const Icon = c.icon;
-          return (
-            <div
-              key={c.title}
-              className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-26px_rgba(15,23,42,0.35)] ${c.hover}`}
-            >
-              <LogoWatermark
-                corner="right-4 top-4"
-                size="w-20 h-20"
-                opacity="opacity-[0.035]"
-              />
-              <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-              <span
-                className={`relative inline-flex w-10 h-10 rounded-xl items-center justify-center ${c.bg} ring-1 ${c.ring} ${c.tint} transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}
-              >
-                <Icon size={18} />
-              </span>
-              <span className="relative block mt-3 text-sm font-bold text-slate-900">
-                {c.title}
-              </span>
-              <p className="relative text-[11px] text-slate-600 leading-relaxed mt-1">
-                {c.body}
-              </p>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* ─── Cross-sell ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-[2rem] border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-rose-950/60 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="absolute -right-10 -bottom-16 w-64 h-64 rounded-full bg-rose-500/10 blur-3xl pointer-events-none" />
-        <div className="relative">
-          <h2 className="text-base font-black text-white">
-            Also looking for a verified househelp?
+      <section aria-labelledby="cleaning-services-heading" className="space-y-5">
+        <div className="max-w-2xl space-y-2">
+          <h2
+            id="cleaning-services-heading"
+            className="display-1 text-2xl text-slate-900 sm:text-3xl"
+          >
+            {tx("Cleaning services")}
           </h2>
-          <p className="text-xs text-rose-50/70 mt-1">
-            Browse ID-verified domestic workers across Kenya.
+          <p className="text-sm text-slate-600">
+            {tx("Contact us to discuss your space and request a quote.")}
           </p>
         </div>
-        <Link
-          href="/workers"
-          className="relative inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-black uppercase tracking-wider text-rose-700 shadow-lg shadow-rose-950/30 hover:bg-rose-50 transition-colors"
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {services.map(({ title, icon: Icon }) => (
+            <article
+              key={title}
+              className="rounded-xl border border-slate-200 bg-white p-5"
+            >
+              <span className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-800">
+                <Icon size={20} />
+              </span>
+              <h3 className="font-semibold text-slate-900">{title}</h3>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-5 rounded-2xl bg-slate-900 p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">
+            {tx("Get in touch with Herlooku")}
+          </h2>
+          <p className="text-sm text-slate-300">
+            {tx("Ask about cleaning services in Mombasa and nearby areas.")}
+          </p>
+        </div>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 self-start rounded-lg border border-white/20 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10 sm:self-auto"
         >
-          Browse helpers
-          <ArrowRight size={14} />
-        </Link>
+          <Instagram size={16} />
+          @herlooku.taskninja
+          <ArrowUpRight size={14} />
+        </a>
       </section>
     </div>
   );

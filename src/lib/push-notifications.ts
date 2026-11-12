@@ -37,7 +37,7 @@ export async function sendIdVerificationReminder(subscription: PushSubscription)
       title: "Complete your ID verification",
       body: "Upload your ID and selfie to finish account verification.",
       url: "/verify-id",
-      icon: "/herkolu-island-logo.png",
+      icon: "/icon.svg",
       badge: "/icon.svg",
     }),
     { TTL: 6 * 60 * 60 },

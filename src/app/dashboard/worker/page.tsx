@@ -165,7 +165,7 @@ export default function WorkerDashboardPage() {
                 {tx("Worker Incident Protection")}
               </span>
               <span className="text-[11px] text-rose-300 font-semibold flex items-center gap-1">
-                <Radio size={12} className="animate-ping" /> {tx("Trust & Safety Case Handling")}
+                <Radio size={12} /> {tx("Trust & Safety Case Handling")}
               </span>
             </div>
             <h3 className="text-base font-bold text-white">
@@ -227,13 +227,21 @@ export default function WorkerDashboardPage() {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-black text-amber-500 flex items-center gap-1">
-              <Star size={24} fill="currentColor" />
-              <span>{profile?.rating.toFixed(1) || "5.0"}</span>
+              {profile?.reviewCount ? (
+                <>
+                  <Star size={24} fill="currentColor" />
+                  <span>{profile.rating.toFixed(1)}</span>
+                </>
+              ) : (
+                <span className="text-base font-semibold text-slate-500">
+                  {tx("No reviews yet")}
+                </span>
+              )}
             </span>
             <span className="text-xs text-slate-500">({profile?.reviewCount || 0} {tx("reviews")})</span>
           </div>
-          <p className="text-[11px] text-emerald-700 font-semibold">
-            {tx("✓ 100% On-time attendance record")}
+          <p className="text-[11px] text-slate-500">
+            {tx("Ratings are based on completed booking reviews.")}
           </p>
         </div>
       </div>

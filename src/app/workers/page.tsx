@@ -10,11 +10,9 @@ import {
   MapPin,
   ShieldCheck,
   Award,
-  CheckCircle,
   SlidersHorizontal,
   Home,
   Clock,
-  Sparkles,
   Coins,
   ArrowUpDown,
   X,
@@ -182,42 +180,30 @@ function WorkersDirectoryContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-ink via-ink-soft to-brand-950 rounded-[2rem] p-8 sm:p-10 text-white shadow-card flex flex-col md:flex-row md:items-center justify-between gap-6 animate-rise-in">
-        <div aria-hidden className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-brand-500/25 blur-3xl pointer-events-none" />
-        <div aria-hidden className="absolute -bottom-28 right-1/3 w-64 h-64 rounded-full bg-cyan-400/15 blur-3xl pointer-events-none" />
-        <div aria-hidden className="absolute inset-0 grid-lines opacity-40 pointer-events-none" />
-        <div className="relative space-y-3.5 max-w-2xl">
-          <div className="pill-dark">
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 sm:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-3.5 max-w-2xl">
+          <div className="pill-brand">
             <ShieldCheck size={13} />
             <span>{tx("Verified Domestic Staff Directory")}</span>
           </div>
-          <h1 className="display-1 text-3xl sm:text-5xl">
-            {tx("Find your exclusive")}{" "}
-            <span className="bg-gradient-to-r from-brand-300 via-cyan-300 to-brand-200 bg-clip-text text-transparent">
-              {tx("househelp")}
-            </span>
+          <h1 className="display-1 text-3xl sm:text-4xl text-slate-900">
+            {tx("Find household help")}
           </h1>
-          <p className="text-slate-300 text-sm leading-relaxed">
-            {tx("Every worker has submitted government ID and cleared background checks. Daily hires cost Ksh 1,000 plus wages paid through Herlooku; monthly hires cost Ksh 3,000 and wages are paid directly by employers.")}
+          <p className="text-slate-600 text-sm leading-relaxed">
+            {tx("Compare worker profiles, services and listed availability. Review the hiring fee and booking details before you request a placement.")}
           </p>
         </div>
 
-        <div className="relative rounded-3xl bg-white/[0.07] backdrop-blur-xl p-5 border border-white/12 text-xs space-y-3 shrink-0 min-w-[15rem]">
-          {[
-            { label: "100% ID Verified", tone: "text-emerald-300" },
-            { label: "Zero Double-Booking", tone: "text-brand-200" },
-            { label: "One-Time Exclusive Fee", tone: "text-cyan-200" },
-          ].map((r) => (
-            <div key={r.label} className={`flex items-center gap-2.5 font-bold ${r.tone}`}>
-              <CheckCircle size={16} />
-              <span>{tx(r.label)}</span>
-            </div>
-          ))}
-          <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+        <div className="rounded-xl bg-slate-50 p-5 border border-slate-200 text-xs space-y-3 shrink-0 min-w-[15rem]">
+          <div className="flex items-center gap-2 text-slate-700 font-semibold">
+            <ShieldCheck size={16} className="text-brand-700" />
+            <span>{tx("ID verification is required to book")}</span>
+          </div>
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-4">
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
               {tx("Hire fee")}
             </span>
-            <span className="text-lg font-black text-white">
+            <span className="text-sm font-bold text-slate-900 text-right">
               {tx("Daily")}: {formatPrice(DAILY_HIRING_FEE_USD)}
               {" · "}
               {tx("Monthly")}: {formatPrice(MONTHLY_HIRING_FEE_USD)}
@@ -521,11 +507,15 @@ function WorkersDirectoryContent() {
 
                     {/* Experience & Trust Badges */}
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                      <div className="flex items-center gap-1 text-amber-500 font-bold">
-                        <Star size={15} fill="currentColor" />
-                        <span>{wp.rating.toFixed(1)}</span>
-                        <span className="text-slate-400 font-normal">({wp.reviewCount})</span>
-                      </div>
+                      {wp.reviewCount > 0 ? (
+                        <div className="flex items-center gap-1 text-amber-600 font-bold">
+                          <Star size={15} fill="currentColor" />
+                          <span>{wp.rating.toFixed(1)}</span>
+                          <span className="text-slate-400 font-normal">({wp.reviewCount})</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-500">{tx("No reviews yet")}</span>
+                      )}
                       <div className="flex items-center gap-1 text-slate-500">
                         <Award size={14} className="text-brand-600" />
                         <span>{wp.yearsExperience} {tx("yrs exp")}</span>

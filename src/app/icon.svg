@@ -2,8 +2,8 @@
   <defs>
     <!-- Background: deep obsidian-to-midnight gradient -->
     <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0f172a"/>
-      <stop offset="1" stop-color="#1e293b"/>
+      <stop stop-color="#062c50"/>
+      <stop offset="1" stop-color="#0a3b68"/>
     </linearGradient>
     <!-- Fabric wrap: dark navy with slight cool tint -->
     <linearGradient id="fabric" x1="6" y1="4" x2="26" y2="30" gradientUnits="userSpaceOnUse">

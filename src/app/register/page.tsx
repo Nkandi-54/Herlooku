@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Eye, EyeOff, Mail, Lock, User, Phone, MapPin,
   Briefcase, Home, ArrowRight, ShieldCheck, CheckCircle2, MailCheck, AlertTriangle,
 } from "lucide-react";
-import { NinjaAvatar } from "@/components/NinjaAvatar";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 type Role = "client" | "worker";
@@ -100,13 +100,13 @@ export default function RegisterPage() {
   /* ── Success screen ───────────────────────── */
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
-          <div className="w-20 h-20 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-full flex items-center justify-center mx-auto animate-bounce">
-            <CheckCircle2 size={40} className="text-emerald-400" />
+          <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 size={32} className="text-emerald-700" />
           </div>
-          <h2 className="text-2xl font-black text-white">{tx("Account Created!")}</h2>
-          <p className="text-slate-400 text-sm">
+          <h2 className="text-2xl font-bold text-slate-900">{tx("Account Created!")}</h2>
+          <p className="text-slate-600 text-sm">
             {confirmationMessage ||
               t("copy:Welcome to Herlooku, {name}! Redirecting to your dashboard…", { name: form.name })}
           </p>
@@ -114,7 +114,7 @@ export default function RegisterPage() {
             <>
               <div
                 role="note"
-                className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-left text-[11px] font-semibold leading-relaxed text-amber-200"
+                className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-[11px] font-semibold leading-relaxed text-amber-900"
               >
                 {tx(
                   "You cannot sign in until this email is confirmed. Open the link now — it only takes a moment.",
@@ -122,7 +122,7 @@ export default function RegisterPage() {
               </div>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white hover:bg-brand-500"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800"
               >
                 {tx("Continue to sign in")} <ArrowRight size={16} />
               </Link>
@@ -139,40 +139,30 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
-      {/* Ambient orbs */}
-      <div className="absolute top-[-150px] right-[-100px] w-[500px] h-[500px] rounded-full bg-emerald-500/8 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-150px] left-[-100px] w-[500px] h-[500px] rounded-full bg-brand-600/10 blur-[100px] pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
           <Link href="/" className="flex items-center gap-3 group mb-6">
-            <NinjaAvatar
-              className="w-14 h-14 rounded-2xl shadow-[0_0_40px_-10px_rgba(14,165,233,0.5)] group-hover:scale-105 transition-transform duration-300"
-              glyphClassName="w-9 h-9"
-              animated
+            <Image
+              src="/herlooku-brand.png"
+              alt="Herlooku Task Ninja"
+              width={440}
+              height={290}
+              className="h-20 w-32 object-contain"
             />
-            <div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                Her<span className="bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent">looku</span>
-              </span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-0.5">
-                {t("common.brandTagline")}
-              </p>
-            </div>
           </Link>
-          <h1 className="text-2xl font-black text-white text-center">{tx("Create your account")}</h1>
-          <p className="text-sm text-slate-400 mt-1 text-center">{tx("Join thousands of verified Kenyans on Herlooku")}</p>
+          <h1 className="text-2xl font-bold text-slate-900 text-center">{tx("Create your account")}</h1>
+          <p className="text-sm text-slate-600 mt-1 text-center">{tx("Create an account to find or offer household services.")}</p>
         </div>
 
         {/* Step indicator */}
         <div className="flex items-center gap-2 mb-6">
           {[1, 2].map((s) => (
-            <div key={s} className="flex-1 h-1 rounded-full overflow-hidden bg-white/10">
+            <div key={s} className="flex-1 h-1 rounded-full overflow-hidden bg-slate-200">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  step >= s ? "bg-brand-500 w-full" : "w-0"
+                  step >= s ? "bg-brand-700 w-full" : "w-0"
                 }`}
               />
             </div>
@@ -183,22 +173,22 @@ export default function RegisterPage() {
         <div
           role="note"
           aria-label={tx("Confirm your email straight after signing up")}
-          className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 backdrop-blur-sm"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4"
         >
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/15 text-amber-300 ring-1 ring-amber-400/30">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-amber-700 ring-1 ring-amber-200">
               <MailCheck size={16} />
             </span>
             <div className="min-w-0 space-y-1.5">
-              <p className="text-xs font-black uppercase tracking-wider text-amber-300">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-900">
                 {tx("Confirm your email straight after signing up")}
               </p>
-              <p className="text-[12px] leading-relaxed text-amber-100/80">
+              <p className="text-[12px] leading-relaxed text-amber-900">
                 {tx(
                   "We send a confirmation link the moment your account is created. Open it immediately — until your email is confirmed you cannot sign in or use Herlooku.",
                 )}
               </p>
-              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-200/60">
+              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-800">
                 <AlertTriangle size={11} className="mt-0.5 shrink-0" />
                 <span>
                   {tx(
@@ -211,16 +201,16 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm">
 
           {/* ── Step 1: Role + credentials ─────── */}
           {step === 1 && (
             <form onSubmit={handleStep1} className="space-y-4">
-              <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">{tx("Step 1 of 2 — Account basics")}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">{tx("Step 1 of 2 — Account basics")}</p>
 
               {/* Role selector */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("I am joining as")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("I am joining as")}</label>
                 <div className="grid grid-cols-2 gap-3">
                   {(["client", "worker"] as Role[]).map((r) => (
                     <button
@@ -229,8 +219,8 @@ export default function RegisterPage() {
                       onClick={() => setRole(r)}
                       className={`flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 transition-all ${
                         role === r
-                          ? "border-brand-500 bg-brand-500/15 text-white"
-                          : "border-white/10 bg-slate-800/40 text-slate-400 hover:border-white/25"
+                          ? "border-brand-600 bg-brand-50 text-brand-900"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                       }`}
                     >
                       {r === "client" ? <Home size={22} /> : <Briefcase size={22} />}
@@ -245,7 +235,7 @@ export default function RegisterPage() {
 
               {/* Full name */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Full Name")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Full Name")}</label>
                 <div className="relative">
                   <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -255,14 +245,14 @@ export default function RegisterPage() {
                     onChange={set("name")}
                     placeholder={tx("Your legal full name")}
                     aria-label={tx("Full Name")}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                   />
                 </div>
               </div>
 
               {/* Email */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Email Address")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Email Address")}</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -272,14 +262,14 @@ export default function RegisterPage() {
                     onChange={set("email")}
                     placeholder="you@example.com"
                     aria-label={tx("Email Address")}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Password")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Password")}</label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -290,9 +280,9 @@ export default function RegisterPage() {
                     onChange={set("password")}
                     placeholder={tx("Min. 6 characters")}
                     aria-label={tx("Password")}
-                    className="w-full pl-10 pr-12 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                    className="w-full pl-10 pr-12 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                   />
-                  <button type="button" onClick={() => setShowPw(!showPw)} aria-label={tx(showPw ? "Hide password" : "Show password")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                  <button type="button" onClick={() => setShowPw(!showPw)} aria-label={tx(showPw ? "Hide password" : "Show password")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 transition-colors">
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -300,7 +290,7 @@ export default function RegisterPage() {
 
               {/* Confirm password */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Confirm Password")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Confirm Password")}</label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -310,20 +300,20 @@ export default function RegisterPage() {
                     onChange={set("confirmPassword")}
                     placeholder={tx("Repeat your password")}
                     aria-label={tx("Confirm Password")}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                   />
                 </div>
               </div>
 
               {error && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-semibold">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
                   {error}
                 </div>
               )}
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-sm tracking-wide shadow-[0_0_25px_-8px_rgba(14,165,233,0.6)] hover:shadow-[0_0_35px_-8px_rgba(14,165,233,0.8)] transition-all flex items-center justify-center gap-2 mt-2"
+                className="w-full py-3 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 mt-2"
               >
                 {tx("Continue")} <ArrowRight size={16} />
               </button>
@@ -334,15 +324,15 @@ export default function RegisterPage() {
           {step === 2 && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-black uppercase tracking-wider text-slate-400">{tx("Step 2 of 2 — Your details")}</p>
-                <button type="button" onClick={() => setStep(1)} className="text-xs text-brand-400 font-bold hover:text-brand-300 transition-colors">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">{tx("Step 2 of 2 — Your details")}</p>
+                <button type="button" onClick={() => setStep(1)} className="text-xs text-brand-800 font-semibold hover:text-brand-900 transition-colors">
                   {tx("← Back")}
                 </button>
               </div>
 
               {/* Phone */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Phone Number")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Phone Number")}</label>
                 <div className="relative">
                   <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -352,14 +342,14 @@ export default function RegisterPage() {
                     onChange={set("phone")}
                     placeholder="+254 7XX XXX XXX"
                     aria-label={tx("Phone Number")}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                   />
                 </div>
               </div>
 
               {/* Location */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Location / Area")}</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Location / Area")}</label>
                 <div className="relative">
                   <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -368,7 +358,7 @@ export default function RegisterPage() {
                     onChange={set("location")}
                     placeholder={tx("e.g. Westlands, Nairobi")}
                     aria-label={tx("Location / Area")}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                   />
                 </div>
               </div>
@@ -377,18 +367,18 @@ export default function RegisterPage() {
               {role === "worker" && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{tx("Professional Headline")}</label>
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{tx("Professional Headline")}</label>
                     <input
                       type="text"
                       value={form.headline}
                       onChange={set("headline")}
                       placeholder={tx("e.g. Professional Nanny & Cook")}
                       aria-label={tx("Professional Headline")}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                      className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       {tx("Expected Daily Pay")} <span className="normal-case font-normal text-slate-500">{tx("(Ksh, paid by Herlooku after task completion)")}</span>
                     </label>
                     <input
@@ -398,9 +388,9 @@ export default function RegisterPage() {
                       value={form.expectedDailySalary}
                       onChange={set("expectedDailySalary")}
                       placeholder="e.g. 1200"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-800/70 border border-white/10 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/60 transition-all"
+                      className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 transition-all"
                     />
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
                       For daily hires, clients pay Herlooku and Herlooku pays you after the task is completed. Monthly employers pay workers directly.
                     </p>
                   </div>
@@ -408,15 +398,15 @@ export default function RegisterPage() {
               )}
 
               {/* Notice */}
-              <div className="p-3 bg-brand-500/8 border border-brand-500/20 rounded-xl flex items-start gap-2.5">
-                <ShieldCheck size={15} className="text-brand-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+              <div className="p-3 bg-brand-50 border border-brand-200 rounded-lg flex items-start gap-2.5">
+                <ShieldCheck size={15} className="text-brand-700 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-slate-700 leading-relaxed">
                   {tx("After registering, you’ll need to complete ID Verification (government-issued ID + selfie) before booking or being booked.")}
                 </p>
               </div>
 
               {error && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-semibold">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
                   {error}
                 </div>
               )}
@@ -424,7 +414,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm tracking-wide shadow-[0_0_25px_-8px_rgba(14,165,233,0.6)] hover:shadow-[0_0_35px_-8px_rgba(14,165,233,0.8)] transition-all flex items-center justify-center gap-2 mt-2"
+                className="w-full py-3 rounded-lg bg-brand-700 hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 mt-2"
               >
                 {loading ? (
                   <>
@@ -444,7 +434,7 @@ export default function RegisterPage() {
         {/* Footer */}
         <p className="text-center text-sm text-slate-500 mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-brand-400 font-bold hover:text-brand-300 transition-colors">
+          <Link href="/login" className="text-brand-800 font-semibold hover:text-brand-900 transition-colors">
             Sign in →
           </Link>
         </p>

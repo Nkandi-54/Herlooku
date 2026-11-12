@@ -1,18 +1,17 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ShieldCheck,
   Lock,
   CheckCircle2,
   HeartHandshake,
-  Sparkles,
   Mail,
   MapPin,
   Phone,
 } from "lucide-react";
-import { NinjaAvatar } from "./NinjaAvatar";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 export const Footer: React.FC = () => {
@@ -45,17 +44,7 @@ export const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="relative mt-20 bg-ink text-slate-300 overflow-hidden">
-      {/* Ambient glow */}
-      <div
-        aria-hidden
-        className="absolute -top-40 left-1/4 w-[36rem] h-[36rem] rounded-full bg-brand-600/10 blur-[120px] pointer-events-none"
-      />
-      <div
-        aria-hidden
-        className="absolute -bottom-32 right-0 w-96 h-96 rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none"
-      />
-
+    <footer className="mt-20 bg-ink text-slate-300">
       {/* Trust band */}
       <div className="relative border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7">
@@ -81,20 +70,15 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 pb-12 border-b border-white/10">
           {/* Brand + newsletter */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="flex items-center gap-2.5">
-              <NinjaAvatar className="w-10 h-10 rounded-2xl" glyphClassName="w-6 h-6" animated />
-              <div className="leading-none">
-                <span className="text-xl font-black text-white tracking-tight flex items-center gap-1">
-                  Her<span className="text-brand-400">looku</span>
-                  <span className="inline-flex items-center rounded-md bg-gradient-to-tr from-brand-600 to-brand-500 px-1.5 py-[3px] text-[9px] font-black uppercase tracking-[0.12em] text-white leading-none">
-                    Task Ninja
-                  </span>
-                </span>
-                <span className="text-[9px] tracking-[0.2em] text-slate-400 font-bold uppercase block mt-0.5">
-                  {t("common.brandTagline")}
-                </span>
-              </div>
-            </div>
+            <Link href="/" className="inline-flex rounded-lg bg-white p-1.5">
+              <Image
+                src="/herlooku-brand.png"
+                alt="Herlooku Task Ninja"
+                width={440}
+                height={290}
+                className="h-16 w-24 object-contain"
+              />
+            </Link>
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-md">
               {t("footer.blurb")}
@@ -103,7 +87,7 @@ export const Footer: React.FC = () => {
             {/* Trust & Safety contact */}
             <div className="space-y-2.5">
               <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 flex items-center gap-1.5">
-                <Sparkles size={13} className="text-brand-400" />
+                <ShieldCheck size={13} className="text-brand-400" />
                 {t("footer.trustUpdates")}
               </span>
               <a

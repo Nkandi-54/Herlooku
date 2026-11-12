@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -31,7 +30,6 @@ import {
   Hammer,
   Paintbrush,
   Wind,
-  Quote,
   Plus,
   Minus,
   CreditCard,
@@ -160,33 +158,6 @@ const CATEGORIES = [
   },
 ];
 
-const TESTIMONIALS = [
-  {
-    quote:
-      "The upfront exclusive booking changed everything. Our nanny was locked to our household for the full period — no double-booking, no last-minute cancellations.",
-    name: "Sarah Jenkins",
-    role: "Household Client · Westlands",
-    avatar:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    quote:
-      "As a worker, knowing both sides are ID-verified and my pay goes directly to me — with zero platform deductions — made this feel genuinely fair.",
-    name: "Amina Mwangi",
-    role: "Verified Househelp · Nairobi Metro",
-    avatar:
-      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80",
-  },
-  {
-    quote:
-      "The M-Pesa confirmation gave me total confidence. Once payment was verified, our helper was locked and dispatched without delay.",
-    name: "David Miller",
-    role: "Household Client · Kilimani",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-  },
-];
-
 const STEPS = [
   {
     n: "01",
@@ -197,7 +168,7 @@ const STEPS = [
   {
     n: "02",
     title: "Select a Verified Helper",
-    body: "Explore profiles with ratings, references, skill badges and live calendars showing exactly which dates are free.",
+    body: "Compare profiles, services, experience and listed availability before you choose.",
     icon: Search,
   },
   {
@@ -270,49 +241,27 @@ export default function HomePage() {
   return (
     <div className="pb-4">
       {/* ───────────────── HERO ───────────────── */}
-      <section className="relative overflow-hidden pt-14 pb-24">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-b from-brand-50/90 via-sky-50/50 to-transparent"
-        />
-        <div aria-hidden className="absolute inset-0 grid-lines" />
-        <div
-          aria-hidden
-          className="orb w-[30rem] h-[30rem] bg-brand-300/35 -top-32 -left-32 animate-float-slow"
-        />
-        <div
-          aria-hidden
-          className="orb w-96 h-96 bg-cyan-300/30 top-24 -right-24 animate-float-slow"
-          style={{ animationDelay: "2.5s" }}
-        />
-
-        <div className="relative max-w-[88rem] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto space-y-6">
-            <div className="animate-fade-up inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 backdrop-blur border border-brand-200 text-brand-800 text-xs font-bold shadow-soft">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-600" />
-              </span>
-              <span>
-                {tx("Two-sided ID verification · Guaranteed exclusive bookings")}
-              </span>
+      <section className="border-b border-slate-200 bg-white py-14 sm:py-16">
+        <div className="max-w-[88rem] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <ShieldCheck size={17} className="text-brand-700" />
+              <span>              {tx("Household help, with identity checks and clear fees")}</span>
             </div>
 
-            <h1 className="animate-fade-up delay-75 display-1 text-4xl sm:text-6xl lg:text-[4.25rem] text-slate-900">
-              {tx("Hire verified househelps.")}
-              <br />
-              <span className="text-gradient">{tx("Lock them exclusively.")}</span>
+            <h1 className="display-1 text-4xl sm:text-5xl lg:text-6xl text-slate-900 max-w-3xl">
+              {tx("Find household help you can hire with confidence.")}
             </h1>
 
-            <p className="animate-fade-up delay-150 text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
-              {tx("No double-bookings. No unvetted strangers. Every client and worker passes government ID verification. Daily hires cost Ksh 1,000 plus wages held by Herlooku until task completion; monthly hires cost Ksh 3,000, with wages paid directly by employers.")}
+            <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+              {tx("Browse worker profiles, review their listed services and availability, and see the hiring fee before you book.")}
             </p>
 
             {/* Search card */}
-            <div className="animate-fade-up delay-300 pt-2 max-w-3xl mx-auto">
+            <div className="pt-2 max-w-4xl">
               <form
                 onSubmit={handleSearch}
-                className="bg-white/85 backdrop-blur-xl p-2.5 rounded-[1.75rem] shadow-card border border-white/70 flex flex-col md:flex-row items-stretch gap-2 focus-within:ring-2 focus-within:ring-brand-500/25 transition-all"
+                className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-stretch gap-2 focus-within:ring-2 focus-within:ring-brand-500/20 transition-shadow"
               >
                 <div className="flex-1 px-3.5 py-2.5 flex items-center gap-2.5 md:border-r border-slate-100/90">
                   <Search size={18} className="text-brand-600 shrink-0" />
@@ -361,7 +310,7 @@ export default function HomePage() {
             </div>
 
             {/* CTAs */}
-            <div className="animate-fade-up delay-300 pt-1 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="pt-1 flex flex-col sm:flex-row items-start gap-3">
               <Link href="/register" className="btn-primary">
                 <UserCheck size={16} />
                 <span>{tx("Get Started — It's Free")}</span>
@@ -373,51 +322,24 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Stats */}
-            <div className="animate-fade-up delay-300 pt-10 grid grid-cols-2 sm:grid-cols-4 gap-6">
-              {[
-                { value: "100%", label: "ID-verified members" },
-                { value: "0", label: "Double-bookings ever" },
-                { value: "24/7", label: "Trust & safety desk" },
-                { value: "1 day", label: "Verification turnaround" },
-              ].map((s) => (
-                <div key={s.label} className="text-center">
-                  <div className="text-2xl font-black text-slate-900 tracking-tight">
-                    {s.value}
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.12em] mt-1">
-                    {tx(s.label)}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>
 
       {/* ───────────────── TRUST PANEL ───────────────── */}
       <section className="section">
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-ink via-ink-soft to-brand-950 p-8 sm:p-12 text-white shadow-card">
-          <div
-            aria-hidden
-            className="absolute -top-24 -right-16 w-80 h-80 rounded-full bg-brand-500/20 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="absolute -bottom-32 left-1/4 w-72 h-72 rounded-full bg-cyan-400/10 blur-3xl"
-          />
-
-          <div className="relative grid lg:grid-cols-12 gap-10 items-center">
+        <div className="rounded-2xl bg-slate-900 p-8 sm:p-10 text-white">
+          <div className="grid lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-7 space-y-5">
               <span className="pill-dark">
                 <ShieldCheck size={13} />
                 {tx("Strict trust & safety standard")}
               </span>
               <h2 className="display-1 text-3xl sm:text-4xl">
-                {tx("Why we insist on verification — and ban off-platform contact.")}
+                {tx("Identity checks for clients and workers.")}
               </h2>
               <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
-                {tx("Domestic work happens inside private homes. Mutual, verified identity is the only honest foundation for that relationship. Everyone is checked before anyone is booked.")}
+                {tx("Domestic work takes place in private homes. Identity verification helps clients and workers know who they are engaging with.")}
               </p>
 
               <div className="grid sm:grid-cols-2 gap-4 pt-2">
@@ -425,13 +347,13 @@ export default function HomePage() {
                   {
                     icon: UserCheck,
                     title: "Verified househelps",
-                    body: "Government ID, background history and references reviewed by our compliance team before listing.",
+                    body: "Worker profiles are reviewed as part of the platform's identity-verification process.",
                     tone: "text-emerald-400",
                   },
                   {
                     icon: ShieldCheck,
                     title: "Verified clients",
-                    body: "Households must verify identity before they can lock a worker's calendar exclusively.",
+                    body: "Clients complete identity verification before booking a worker.",
                     tone: "text-brand-300",
                   },
                 ].map((c) => {
@@ -439,7 +361,7 @@ export default function HomePage() {
                   return (
                     <div
                       key={c.title}
-                      className="rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm p-5 hover:bg-white/[0.1] transition-colors"
+                      className="rounded-xl bg-white/[0.06] border border-white/10 p-5"
                     >
                       <h4 className="font-bold text-sm flex items-center gap-2 mb-2">
                         <Icon size={17} className={c.tone} />
@@ -463,7 +385,7 @@ export default function HomePage() {
 
             {/* Guarantee card */}
             <div className="lg:col-span-5">
-              <div className="rounded-[1.75rem] bg-white/[0.05] border border-white/12 backdrop-blur-xl p-6 space-y-5">
+              <div className="rounded-xl bg-white/[0.05] border border-white/10 p-6 space-y-5">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
                     <Lock size={20} className="text-emerald-400" />
@@ -482,7 +404,7 @@ export default function HomePage() {
                   {[
                     "Calendar locked exclusively to your household",
                     "No salary handling — paid directly to your helper",
-                    "Incident response desk available 24/7",
+                    "In-platform incident reporting",
                     "One-time fee, no recurring commission",
                   ].map((item) => (
                     <div
@@ -542,9 +464,9 @@ export default function HomePage() {
               <Link
                 key={c.value}
                 href={`/workers?service=${encodeURIComponent(c.value)}`}
-                className="group relative rounded-2xl bg-white border border-slate-200/90 p-5 flex flex-col items-center text-center gap-3 shadow-soft hover:shadow-card hover:-translate-y-1 hover:border-brand-200 transition-all duration-300 min-h-[10.5rem] justify-start"
+                className="group rounded-xl bg-white border border-slate-200 p-5 flex flex-col items-center text-center gap-3 hover:border-slate-300 hover:shadow-sm transition-colors min-h-[10.5rem] justify-start"
               >
-                <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white group-hover:scale-110 transition-all duration-300 shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0">
                   <Icon size={22} />
                 </div>
                 <div className="flex-1 flex flex-col justify-start">
@@ -577,17 +499,17 @@ export default function HomePage() {
           {/* connector */}
           <div
             aria-hidden
-            className="hidden md:block absolute top-[3.25rem] left-[12%] right-[12%] h-px bg-gradient-to-r from-brand-200 via-brand-300 to-brand-200"
+            className="hidden md:block absolute top-[3.25rem] left-[12%] right-[12%] h-px bg-slate-200"
           />
           {STEPS.map((s) => {
             const Icon = s.icon;
             return (
               <div
                 key={s.n}
-                className={`relative rounded-3xl p-6 space-y-3.5 transition-all duration-300 hover:-translate-y-1 border shadow-soft ${
+                className={`relative rounded-2xl p-6 space-y-3.5 border ${
                   s.highlight
-                    ? "bg-gradient-to-br from-brand-600 to-brand-700 text-white border-brand-500/40 shadow-glow-brand"
-                    : "bg-white border-slate-200/90 hover:shadow-card"
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white border-slate-200"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -634,11 +556,10 @@ export default function HomePage() {
           <div className="space-y-2">
             <span className="eyebrow">{tx("Verified marketplace")}</span>
             <h2 className="display-1 text-3xl sm:text-4xl text-slate-900">
-              {tx("Top-rated verified househelps")}
+              {tx("Verified helpers")}
             </h2>
             <p className="text-slate-600 text-sm">
-              Government ID verified, background-checked and ready for exclusive
-              booking.
+              Review worker profiles and availability before requesting a booking.
             </p>
           </div>
           <Link
@@ -672,7 +593,7 @@ export default function HomePage() {
             : featuredWorkers.map((wp) => (
                 <div
                   key={wp.id}
-                  className="ring-conic group bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 flex flex-col justify-between"
+                  className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col justify-between"
                 >
                   <div className="p-6 space-y-4">
                     <div className="flex items-start justify-between gap-3">
@@ -720,13 +641,17 @@ export default function HomePage() {
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-amber-500 font-black">
-                        <Star size={14} fill="currentColor" />
-                        <span>{wp.rating.toFixed(1)}</span>
-                        <span className="text-slate-400 font-medium">
-                          ({wp.reviewCount})
-                        </span>
-                      </div>
+                      {wp.reviewCount > 0 ? (
+                        <div className="flex items-center gap-1 text-amber-600 font-bold">
+                          <Star size={14} fill="currentColor" />
+                          <span>{wp.rating.toFixed(1)}</span>
+                          <span className="text-slate-400 font-medium">
+                            ({wp.reviewCount})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-500">{tx("No reviews yet")}</span>
+                      )}
                       <div className="flex items-center gap-1 text-slate-500 font-semibold">
                         <Award size={13} className="text-brand-600" />
                         <span>{wp.yearsExperience} yrs exp</span>
@@ -761,56 +686,6 @@ export default function HomePage() {
                   </div>
                 </div>
               ))}
-        </div>
-      </section>
-
-      {/* ───────────────── TESTIMONIALS ───────────────── */}
-      <section className="section pt-20">
-        <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
-          <span className="eyebrow">{tx("Trusted on both sides")}</span>
-          <h2 className="display-1 text-3xl sm:text-4xl text-slate-900">
-            {tx("Households and helpers agree")}
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t) => (
-            <figure
-              key={t.name}
-              className="relative rounded-3xl bg-white border border-slate-200/90 p-6 shadow-soft hover:shadow-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-5"
-            >
-              <Quote size={28} className="text-brand-100" />
-              <blockquote className="text-xs text-slate-700 leading-relaxed -mt-6">
-                &ldquo;{tx(t.quote)}&rdquo;
-              </blockquote>
-              <figcaption className="flex items-center gap-3 pt-4 border-t border-slate-100">
-                <Image
-                  src={t.avatar}
-                  alt={t.name}
-                  width={40}
-                  height={40}
-                  unoptimized
-                  className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                />
-                <div>
-                  <span className="text-xs font-black text-slate-900 block">
-                    {t.name}
-                  </span>
-                  <span className="text-[10px] text-slate-500">{tx(t.role)}</span>
-                </div>
-                <div className="ml-auto flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      size={11}
-                      className="text-amber-400"
-                      fill="currentColor"
-                    />
-                  ))}
-                </div>
-              </figcaption>
-            </figure>
-          ))}
         </div>
       </section>
 
@@ -884,17 +759,8 @@ export default function HomePage() {
 
       {/* ───────────────── CLOSING CTA ───────────────── */}
       <section className="section pt-20">
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800 px-8 py-14 sm:px-14 text-white text-center shadow-card">
-          <div
-            aria-hidden
-            className="absolute -top-24 -left-16 w-72 h-72 rounded-full bg-cyan-300/20 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="absolute -bottom-28 -right-10 w-80 h-80 rounded-full bg-white/10 blur-3xl"
-          />
-
-          <div className="relative max-w-2xl mx-auto space-y-5">
+        <div className="rounded-2xl bg-slate-900 px-8 py-12 sm:px-14 text-white text-center">
+          <div className="max-w-2xl mx-auto space-y-5">
             <span className="pill-dark mx-auto">
               <Coins size={13} />
               {tx("One-time fee · Zero commission")}

@@ -262,7 +262,7 @@ export default function ClientDashboardPage() {
                 Incident Response
               </span>
               <span className="text-[11px] text-rose-300 font-semibold flex items-center gap-1">
-                <Radio size={12} className="animate-ping" /> 24/7 Trust & Safety Case Handling
+                <Radio size={12} /> Trust & Safety Case Handling
               </span>
             </div>
             <h3 className="text-base font-bold text-white">

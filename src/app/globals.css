@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 15, 23, 42;
+  --foreground-rgb: 30, 41, 59;
   --background-start-rgb: 248, 250, 252;
-  --background-end-rgb: 255, 255, 255;
+  --background-end-rgb: 248, 250, 252;
 }
 
 html {
@@ -18,10 +18,7 @@ html {
 
 body {
   color: rgb(var(--foreground-rgb));
-  background:
-    radial-gradient(1200px 500px at 80% -10%, rgba(14, 165, 233, 0.06), transparent 60%),
-    radial-gradient(900px 400px at 0% 10%, rgba(56, 189, 248, 0.05), transparent 55%),
-    #f0f9ff;
+  background: #f8fafc;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   min-height: 100vh;
@@ -94,8 +91,7 @@ body {
     border-color 0.25s ease;
 }
 .lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 40px -18px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 8px 24px -14px rgba(15, 23, 42, 0.2);
 }
 
 /* ---------- Selection & scrollbar polish ---------- */
@@ -108,7 +104,7 @@ select {
 /* ---------- Glass surfaces ---------- */
 @layer components {
   .glass {
-    @apply bg-white/70 backdrop-blur-xl border border-white/60;
+    @apply bg-white border border-slate-200;
   }
   .glass-dark {
     @apply bg-slate-900/60 backdrop-blur-xl border border-white/10;
@@ -121,12 +117,12 @@ select {
       disabled:opacity-60 disabled:cursor-not-allowed select-none;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-glow-brand hover:bg-brand-500 hover:-translate-y-0.5
-      active:translate-y-0 active:scale-[0.98] px-5 py-3 text-sm;
+    @apply btn bg-brand-700 text-white hover:bg-brand-800
+      active:scale-[0.99] px-5 py-3 text-sm;
   }
   .btn-secondary {
-    @apply btn bg-white text-slate-800 border border-slate-200 shadow-sm hover:border-brand-300
-      hover:text-brand-700 hover:-translate-y-0.5 active:translate-y-0 px-5 py-3 text-sm;
+    @apply btn bg-white text-slate-800 border border-slate-300 hover:border-slate-400
+      hover:bg-slate-50 active:scale-[0.99] px-5 py-3 text-sm;
   }
   .btn-ghost {
     @apply btn text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3.5 py-2 text-xs;
@@ -141,10 +137,10 @@ select {
 
   /* Surfaces */
   .card {
-    @apply bg-white rounded-3xl border border-slate-200/90 shadow-soft;
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
   }
   .card-hover {
-    @apply card transition-all duration-300 hover:shadow-card hover:-translate-y-1 hover:border-brand-200;
+    @apply card transition-shadow duration-200 hover:shadow-md;
   }
   .card-dark {
     @apply bg-ink-soft rounded-3xl border border-white/10 shadow-card;
@@ -166,10 +162,10 @@ select {
     @apply max-w-[88rem] mx-auto px-4 sm:px-6 lg:px-8;
   }
   .eyebrow {
-    @apply text-[11px] font-black uppercase tracking-[0.18em] text-brand-600;
+    @apply text-[11px] font-bold uppercase tracking-[0.12em] text-brand-700;
   }
   .display-1 {
-    @apply font-display font-black tracking-[-0.02em] leading-[1.05];
+    @apply font-display font-bold tracking-[-0.02em] leading-[1.12];
   }
 }
 
@@ -182,12 +178,7 @@ select {
 
 /* ---------- Gradient text ---------- */
 .text-gradient {
-  background-image: linear-gradient(100deg, #0284c7 0%, #38bdf8 45%, #0ea5e9 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: gradient-pan 8s ease infinite;
+  color: #0369a1;
 }
 
 /* ---------- Decorative grid & noise ---------- */

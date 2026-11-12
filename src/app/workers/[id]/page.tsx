@@ -7,7 +7,6 @@ import Link from "next/link";
 import {
   Star,
   ShieldCheck,
-  Award,
   CheckCircle2,
   Calendar,
   Lock,
@@ -269,13 +268,17 @@ export default function WorkerDetailPage() {
                       <MapPin size={14} className="text-slate-400" />
                       <span>{profile.location}</span>
                     </span>
-                    <span className="flex items-center gap-1 text-amber-500 font-bold">
-                      <Star size={14} fill="currentColor" />
-                      <span>{profile.rating.toFixed(2)}</span>
-                      <span className="text-slate-400 font-normal">
-                        ({profile.reviewCount} reviews)
+                    {profile.reviewCount > 0 ? (
+                      <span className="flex items-center gap-1 text-amber-600 font-bold">
+                        <Star size={14} fill="currentColor" />
+                        <span>{profile.rating.toFixed(2)}</span>
+                        <span className="text-slate-400 font-normal">
+                          ({profile.reviewCount} reviews)
+                        </span>
                       </span>
-                    </span>
+                    ) : (
+                      <span className="text-slate-500">{tx("No reviews yet")}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -285,7 +288,7 @@ export default function WorkerDetailPage() {
                 <div className="text-2xl font-black text-slate-900">
                   {formatPrice(platformBookingFee)}
                 </div>
-                <div className="text-[11px] text-slate-500">{tx("to lock helper exclusively")}</div>
+                <div className="text-[11px] text-slate-500">{tx("Hiring fee for this booking")}</div>
                 <div className="text-[11px] text-sky-900 font-bold mt-1 pt-1 border-t border-sky-200">
                   {availableEngagements.includes("daily") && (
                     <span className="block">{tx("Daily hiring fee")}: {formatPrice(hiringFeeUSD("daily"))}</span>
@@ -299,30 +302,14 @@ export default function WorkerDetailPage() {
               </div>
             </div>
 
-            {/* Vetted Credentials Checklist */}
-            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 p-2.5 rounded-xl border border-emerald-100">
-                <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
-                <span className="font-semibold">{tx("Government ID Verified")}</span>
-              </div>
-              <div className="flex items-center gap-2 bg-sky-50 text-sky-800 p-2.5 rounded-xl border border-sky-100">
-                <CheckCircle2 size={16} className="text-sky-600 shrink-0" />
-                <span className="font-semibold">{tx("Background Cleared")}</span>
-              </div>
-              <div className="flex items-center gap-2 bg-blue-50 text-blue-800 p-2.5 rounded-xl border border-blue-100">
-                <Award size={16} className="text-blue-600 shrink-0" />
-                <span className="font-semibold">{t("copy:{count} Verified References", { count: profile.referenceCount })}</span>
-              </div>
-            </div>
           </div>
 
-          {/* Privacy & No-Contact Notice */}
-          <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-sm flex items-start gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 flex items-start gap-3">
             <Lock size={22} className="text-sky-400 shrink-0 mt-1" />
-            <div className="space-y-1 text-xs">
-              <h3 className="font-bold text-sky-300 text-sm">{tx("Off-Platform Communication Prohibited")}</h3>
-              <p className="text-slate-300 leading-relaxed">
-                {tx("To prevent bypass scams and ensure guaranteed exclusive scheduling, direct phone and messaging channels between clients and domestic workers are disabled. All booking arrival details and special household notes are coordinated through the platform.")}
+            <div className="space-y-1 text-sm">
+              <h3 className="font-semibold text-slate-900">{tx("Booking through Herlooku")}</h3>
+              <p className="text-slate-600 leading-relaxed">
+                {tx("Review the dates, service and fee before sending a booking request.")}
               </p>
             </div>
           </div>
@@ -387,17 +374,17 @@ export default function WorkerDetailPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Lock size={18} className="text-brand-600" />
-                <span>{tx("Exclusive Schedule & Blocked Dates")}</span>
+                <span>{tx("Booking availability")}</span>
               </h2>
               <span className="text-xs text-slate-500 font-medium">
-                {tx("Locked dates cannot be double-booked")}
+                {tx("Current and pending bookings")}
               </span>
             </div>
 
             {bookedDateRanges.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-xs text-slate-600">
-                  {tx("Unavailable dates are locked after payment, while pending dates are held temporarily:")}
+                  {tx("Unavailable dates and pending requests are listed below:")}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                   {bookedDateRanges.map((b, i) => (
@@ -433,7 +420,7 @@ export default function WorkerDetailPage() {
               </div>
             ) : (
               <p className="text-xs text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-200">
-                {tx("✓ No active locks. This worker is open for immediate exclusive hire!")}
+                {tx("No scheduled booking dates are listed.")}
               </p>
             )}
           </div>
@@ -444,10 +431,12 @@ export default function WorkerDetailPage() {
               <h2 className="text-lg font-bold text-slate-900">
                 {t("copy:Verified Client Reviews ({count})", { count: reviews.length })}
               </h2>
-              <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
-                <Star size={16} fill="currentColor" />
-                <span>{profile.rating.toFixed(2)} / 5.0</span>
-              </div>
+              {reviews.length > 0 && (
+                <div className="flex items-center gap-1 text-amber-600 font-bold text-sm">
+                  <Star size={16} fill="currentColor" />
+                  <span>{profile.rating.toFixed(2)} / 5.0</span>
+                </div>
+              )}
             </div>
 
             {reviews.length === 0 ? (

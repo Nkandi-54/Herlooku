@@ -66,7 +66,7 @@ export function VerificationReminder() {
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification(tx("Complete your ID verification"), {
             body: tx("Upload your ID and selfie to finish account verification."),
-            icon: "/herkolu-island-logo.png",
+            icon: "/icon.svg",
             badge: "/icon.svg",
             data: { url: "/verify-id" },
             tag: "id-verification-reminder",
@@ -145,7 +145,7 @@ export function VerificationReminder() {
         <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-xl">
           <div className="flex items-start gap-3">
             <Image
-              src="/herkolu-island-logo.png"
+              src="/icon.svg"
               alt=""
               width={40}
               height={40}
