@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://herlookutaskninja.vercel.app",
   ),
   title: {
-    default: "Herlooku Task Ninja — Verified Househelps, Exclusively Booked",
+    default: "Herlooku Task Ninja | Household Services",
     template: "%s · Herlooku Task Ninja",
   },
   description:
