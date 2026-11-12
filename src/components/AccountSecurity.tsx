@@ -65,6 +65,17 @@ export default function AccountSecurity() {
   const [deletionConfirmation, setDeletionConfirmation] = useState("");
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionMessage, setDeletionMessage] = useState("");
+  const [deletionRequest, setDeletionRequest] = useState<{
+    id: string;
+    status: "pending" | "approved" | "rejected";
+    reason: string;
+    requested_at: string;
+    review_reason?: string | null;
+  } | null>(null);
+  const [requestReason, setRequestReason] = useState("");
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestMessage, setRequestMessage] = useState("");
+  const isWorker = currentUser?.role === "worker";
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +99,30 @@ export default function AccountSecurity() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadRequest = async () => {
+      try {
+        const res = await fetch("/api/account-deletion-requests");
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            const pending = (data.requests || []).find(
+              (r: { status: string }) => r.status === "pending",
+            );
+            setDeletionRequest(pending || null);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    if (isWorker) loadRequest();
+    return () => {
+      cancelled = true;
+    };
+  }, [isWorker]);
 
   const strength = passwordStrength(newPassword);
   const meta = strengthMeta[strength];
@@ -146,6 +181,39 @@ export default function AccountSecurity() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const submitDeletionRequest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setRequestMessage("");
+    setRequestSubmitting(true);
+    try {
+      const res = await fetch("/api/account-deletion-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: requestReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRequestMessage(data.error || tx("Could not submit the request."));
+        return;
+      }
+      setRequestMessage(tx("Your request was sent to the administrators."));
+      setRequestReason("");
+      const refresh = await fetch("/api/account-deletion-requests");
+      if (refresh.ok) {
+        const refreshData = await refresh.json();
+        setDeletionRequest(
+          (refreshData.requests || []).find(
+            (r: { status: string }) => r.status === "pending",
+          ) || null,
+        );
+      }
+    } catch {
+      setRequestMessage(tx("Network error. Please try again."));
+    } finally {
+      setRequestSubmitting(false);
     }
   };
 
@@ -296,6 +364,56 @@ export default function AccountSecurity() {
             </div>
           )}
       </section>
+
+      {isWorker && (
+        <section className="bg-white/80 backdrop-blur-xl border border-amber-200 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <UserX size={18} className="text-amber-600" />
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+              {tx("Request Account Deletion")}
+            </h2>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            {tx("Ask the administrators to review and remove your account. Approval takes effect only after an administrator accepts your request with a recorded reason.")}
+          </p>
+          {deletionRequest ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+              <p className="font-bold uppercase tracking-wide">
+                {tx("Request pending administrator review")}
+              </p>
+              <p className="mt-1 leading-relaxed">
+                {tx("Submitted")}: {new Date(deletionRequest.requested_at).toLocaleString()} — {deletionRequest.reason}
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={submitDeletionRequest} className="space-y-3">
+              <textarea
+                value={requestReason}
+                onChange={(event) => setRequestReason(event.target.value)}
+                rows={3}
+                required
+                minLength={3}
+                maxLength={1000}
+                disabled={requestSubmitting}
+                placeholder={tx("Tell the administrators why you want your account removed")}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 disabled:bg-slate-100"
+              />
+              {requestMessage && (
+                <p role="alert" className="text-xs font-semibold text-rose-700">
+                  {requestMessage}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={requestSubmitting || requestReason.trim().length < 3}
+                className="rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {requestSubmitting ? tx("Sending…") : tx("Send deletion request")}
+              </button>
+            </form>
+          )}
+        </section>
+      )}
 
       {(currentUser?.role === "client" || currentUser?.role === "worker") && (
         <section className="bg-white/80 backdrop-blur-xl border border-rose-200 rounded-2xl p-6 space-y-4">

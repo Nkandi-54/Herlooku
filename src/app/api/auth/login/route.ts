@@ -108,6 +108,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (profile.deleted_at) {
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        { error: "This account no longer exists. Please contact support if you believe this is a mistake." },
+        { status: 403 },
+      );
+    }
     if (profile.account_status === "suspended") {
       await supabase.auth.signOut();
       return NextResponse.json(
