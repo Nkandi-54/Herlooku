@@ -28,6 +28,8 @@ import {
   KES_PER_USD,
   CHILDCARE_FEE_PER_CHILD_KES,
   CLIENT_BUYS_SUPPLIES_SERVICES,
+  PROFESSIONAL_CLEANING_TIERS,
+  usesProfessionalCleaningTiers,
 } from "@/types";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -53,6 +55,7 @@ function BookingCheckoutPage() {
   const [clientAddress, setClientAddress] = useState(searchParams.get("clientAddress") || "");
   const [specialInstructions, setSpecialInstructions] = useState(searchParams.get("specialInstructions") || "");
   const [childcareChildren, setChildcareChildren] = useState(0);
+  const [surchargeTierId, setSurchargeTierId] = useState("");
 
   // Payment fields
   const [paymentMethod, setPaymentMethod] = useState<"mobile_money">("mobile_money");
@@ -187,6 +190,10 @@ function BookingCheckoutPage() {
     serviceName.toLowerCase().includes("nanny");
   const children = isChildcareService ? childcareChildren : 0;
   const childcareFee = (children * CHILDCARE_FEE_PER_CHILD_KES) / KES_PER_USD;
+  const isProCleaning = usesProfessionalCleaningTiers(serviceName);
+  const chosenTier = PROFESSIONAL_CLEANING_TIERS.find((t) => t.id === surchargeTierId);
+  const surchargeKes = isProCleaning && chosenTier ? chosenTier.surchargeKes : 0;
+  const surchargeUsd = surchargeKes / KES_PER_USD;
   const buysSupplies = CLIENT_BUYS_SUPPLIES_SERVICES.some(
     (s) => serviceName.toLowerCase().includes(s.toLowerCase()),
   );
@@ -202,7 +209,7 @@ function BookingCheckoutPage() {
     engagementType === "daily"
       ? workerExpectedDailySalary * totalDays
       : 0;
-  const totalAmount = platformBookingFee + childcareFee + workerSalaryDueAtBooking;
+  const totalAmount = platformBookingFee + childcareFee + surchargeUsd + workerSalaryDueAtBooking;
 
   // Handle booking creation + payment
   const handleExecutePayment = async () => {
@@ -223,6 +230,7 @@ function BookingCheckoutPage() {
           specialInstructions,
           engagementType,
           childcareChildren: children,
+          surchargeTierId: isProCleaning ? surchargeTierId : undefined,
         }),
       });
 
@@ -481,6 +489,30 @@ function BookingCheckoutPage() {
                 </select>
               </div>
 
+              {isProCleaning && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">
+                    {tx("Home size")}
+                  </label>
+                  <select
+                    value={surchargeTierId}
+                    aria-label={tx("Home size")}
+                    onChange={(e) => setSurchargeTierId(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                  >
+                    <option value="">{tx("Select your home size")}</option>
+                    {PROFESSIONAL_CLEANING_TIERS.map((tier) => (
+                      <option key={tier.id} value={tier.id}>
+                        {tier.label} ({tier.rangeLabel})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-500">
+                    {tx("Professional-grade cleaning priced by home size, added to your payment.")}
+                  </p>
+                </div>
+              )}
+
               {isChildcareService && (
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">
@@ -693,12 +725,20 @@ function BookingCheckoutPage() {
                 </div>
               )}
               {children > 0 && (
-                <>
                   <div className="flex justify-between text-slate-600">
                     <span>{tx("Childcare surcharge")} ({children} × KSh 1,000)</span>
                     <span className="font-semibold text-slate-900">{formatPrice(childcareFee)}</span>
                   </div>
-                </>
+              )}
+              {surchargeKes > 0 && chosenTier && (
+                <div className="flex justify-between text-slate-600">
+                  <span>
+                    {tx("Professional cleaning")} — {chosenTier.label}
+                  </span>
+                  <span className="font-semibold text-slate-900">
+                    KSh {surchargeKes.toLocaleString()}
+                  </span>
+                </div>
               )}
               <div className="pt-3 border-t border-slate-200 flex justify-between text-base font-black text-slate-900">
                 <span>{tx("Total Due to Herlooku Now")}</span>
@@ -748,6 +788,7 @@ function BookingCheckoutPage() {
                 !startDate ||
                 !endDate ||
                 !clientAddress ||
+                (isProCleaning && !surchargeTierId) ||
                 (currentUser?.idVerificationStatus !== "verified") ||
                 paymentDestination?.configured === false
               }
@@ -756,6 +797,7 @@ function BookingCheckoutPage() {
                 !startDate ||
                 !endDate ||
                 !clientAddress ||
+                (isProCleaning && !surchargeTierId) ||
                 currentUser?.idVerificationStatus !== "verified" ||
                 paymentDestination?.configured === false
                   ? "bg-slate-300 text-slate-500 cursor-not-allowed"

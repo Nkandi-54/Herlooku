@@ -6,6 +6,8 @@ import {
   hiringFeeUSD,
   CHILDCARE_FEE_PER_CHILD_KES,
   KES_PER_USD,
+  PROFESSIONAL_CLEANING_TIERS,
+  usesProfessionalCleaningTiers,
   isAdminRole,
 } from "@/types";
 import { jsonError, requireAuthenticatedUser } from "@/lib/auth";
@@ -114,6 +116,7 @@ export async function POST(req: Request) {
       serviceRequirements,
       engagementType,
       childcareChildren: childcareChildrenRaw,
+      surchargeTierId,
     } = body;
 
     const childcareChildren = Math.max(
@@ -244,6 +247,21 @@ export async function POST(req: Request) {
     // KES 1,000 per child, converted to the USD base used by all booking math.
     const childcareFee =
       (children * CHILDCARE_FEE_PER_CHILD_KES) / KES_PER_USD;
+
+    // Professional deep cleaning is priced per home size. Only a known tier id
+    // is accepted, and only for that service — the amount is looked up here,
+    // never taken from the client.
+    let surchargeKes = 0;
+    let surchargeLabel: string | undefined;
+    if (usesProfessionalCleaningTiers(String(serviceName || ""))) {
+      const tier = PROFESSIONAL_CLEANING_TIERS.find((t) => t.id === surchargeTierId);
+      if (tier) {
+        surchargeKes = tier.surchargeKes;
+        surchargeLabel = tier.label;
+      }
+    }
+    const surchargeUsd = surchargeKes / KES_PER_USD;
+
     const workerExpectedDailySalary =
       selectedEngagement === "daily"
         ? workerProfile.expectedDailySalary || 8
@@ -256,6 +274,7 @@ export async function POST(req: Request) {
     const totalAmount =
       platformBookingFee +
       childcareFee +
+      surchargeUsd +
       (selectedEngagement === "daily"
         ? workerExpectedDailySalary * totalDays
         : 0);
@@ -280,6 +299,8 @@ export async function POST(req: Request) {
       totalAmount,
       childcareChildren: children,
       childcareFee,
+      surchargeKes,
+      surchargeLabel,
       status: "pending_payment",
       escrowStatus: "holding",
       clientAddress,

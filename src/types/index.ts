@@ -54,6 +54,39 @@ export const CLIENT_BUYS_SUPPLIES_SERVICES = [
   "Deep Cleaning (Professional)",
   "Mama Fua",
 ];
+
+/** One-off priced tier for professional deep cleaning, by home size (KES). */
+export const PROFESSIONAL_CLEANING_TIERS: {
+  id: string;
+  label: string;
+  /** Minimum charge in KES; rangeLow/High describe the market range shown. */
+  surchargeKes: number;
+  rangeLabel: string;
+}[] = [
+  {
+    id: "1bed",
+    label: "1-Bedroom Apartment",
+    surchargeKes: 9500,
+    rangeLabel: "from KSh 9,500",
+  },
+  {
+    id: "2bed",
+    label: "2-Bedroom Home",
+    surchargeKes: 12000,
+    rangeLabel: "KSh 12,000 – 14,500",
+  },
+  {
+    id: "3to4bed",
+    label: "3 to 4-Bedroom Home",
+    surchargeKes: 16500,
+    rangeLabel: "KSh 16,500 – 22,000",
+  },
+];
+
+/** Quick lookup: is this service name priced by professional-cleaning tiers? */
+export function usesProfessionalCleaningTiers(serviceName: string): boolean {
+  return /professional/i.test(serviceName) && /deep cleaning/i.test(serviceName);
+}
 export const DAILY_HIRING_FEE_USD = DAILY_HIRING_FEE_KES / KES_PER_USD;
 export const MONTHLY_HIRING_FEE_USD = MONTHLY_HIRING_FEE_KES / KES_PER_USD;
 /** Legacy name retained for existing monthly bookings and callers. */
@@ -179,6 +212,10 @@ export interface Booking {
   childcareChildren?: number;
   /** One-off surcharge: hiringFeePerChild × children (KES converted to USD base). */
   childcareFee?: number;
+  /** One-off service surcharge in KES (e.g. professional deep-cleaning tier). */
+  surchargeKes?: number;
+  /** Human label of the chosen surcharge tier, e.g. "2-Bedroom Home". */
+  surchargeLabel?: string;
   hireFee?: number; // Optional legacy field
   platformFee?: number; // Optional legacy field
   status: BookingStatus;

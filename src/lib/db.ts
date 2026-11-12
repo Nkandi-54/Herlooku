@@ -75,6 +75,8 @@ type BookingRow = {
   total_amount: number | string;
   childcare_children: number | null;
   childcare_fee: number | string | null;
+  surcharge_kes: number | string | null;
+  surcharge_label: string | null;
   status: BookingStatus;
   escrow_status: EscrowStatus;
   client_address: string;
@@ -187,6 +189,8 @@ function mapBooking(row: BookingRow): Booking {
     totalAmount: Number(row.total_amount),
     childcareChildren: row.childcare_children ?? 0,
     childcareFee: Number(row.childcare_fee ?? 0),
+    surchargeKes: Number(row.surcharge_kes ?? 0),
+    surchargeLabel: row.surcharge_label ?? undefined,
     status: row.status,
     escrowStatus: row.escrow_status,
     clientAddress: row.client_address,
@@ -258,6 +262,8 @@ function toBookingInsert(
     worker_expected_daily_salary: booking.workerExpectedDailySalary,
     childcare_children: booking.childcareChildren ?? 0,
     childcare_fee: booking.childcareFee ?? 0,
+    surcharge_kes: booking.surchargeKes ?? 0,
+    surcharge_label: booking.surchargeLabel ?? null,
     client_address: booking.clientAddress,
     special_instructions: booking.specialInstructions ?? null,
     ...overrides,
