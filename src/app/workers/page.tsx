@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, Suspense, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -49,15 +49,22 @@ function WorkersDirectoryContent() {
   const [onlyLiveIn, setOnlyLiveIn] = useState(false);
   const [sortBy, setSortBy] = useState<string>("recommended");
 
-  // Keep state synced if URL changes (e.g. from footer link or hero category click)
+  // Keep state synced when the URL changes (footer link, hero category click).
+  // The comparison state must live in a ref: depending on selectedService/search
+  // here made the effect reset every user selection back to the URL value,
+  // which disabled all filtering.
+  const lastSyncedService = useRef(urlService);
+  const lastSyncedSearch = useRef(urlSearch);
   useEffect(() => {
-    if (urlService && urlService !== selectedService) {
-      setSelectedService(urlService);
+    if (urlService !== lastSyncedService.current) {
+      lastSyncedService.current = urlService;
+      setSelectedService(urlService || "All");
     }
-    if (urlSearch && urlSearch !== search) {
+    if (urlSearch !== lastSyncedSearch.current) {
+      lastSyncedSearch.current = urlSearch;
       setSearch(urlSearch);
     }
-  }, [urlService, urlSearch, search, selectedService]);
+  }, [urlService, urlSearch]);
 
   const services = [
     "All",
